@@ -27,7 +27,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTheme } from "next-themes";
 
 type DashboardLayoutProps = {
@@ -208,7 +208,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   console.log(1);
                 }}
               >
-                <LogOut className="mr-3 inline-block size-4" />
+                <LogOut className="inline-block size-4" />
                 <span className="text-sm">Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>

@@ -8,7 +8,7 @@ export default function CategoryCards() {
   const deleteCategoryMutation = useCategoryMutations();
   const categoriesQuery = useCategories();
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {categoriesQuery.data?.map((category) => (
         <div
           className="bg-accent flex flex-col justify-between gap-3 rounded-lg p-6 shadow-md"

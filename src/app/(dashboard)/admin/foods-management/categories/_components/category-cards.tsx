@@ -5,6 +5,7 @@ import { useDeleteCategory } from "@/app/(dashboard)/admin/foods-management/cate
 import { useCategories } from "@/app/(dashboard)/admin/foods-management/categories/_services/use-category-queries";
 import { alert } from "@/lib/use-global-store";
 import { useCategoryStore } from "@/app/(dashboard)/admin/foods-management/categories/_libs/use-category-store";
+import { CategoryCardsSkeleton } from "./category-cards-skeleton";
 
 export default function CategoryCards() {
   const { updateSelectedCategoryId, updateCategoryDialogOpen } =
@@ -13,39 +14,46 @@ export default function CategoryCards() {
   const categoriesQuery = useCategories();
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {categoriesQuery.data?.map((category) => (
-        <div
-          className="bg-accent flex flex-col justify-between gap-3 rounded-lg p-6 shadow-md"
-          key={category.id}
-        >
-          <p className="truncate">{category.name}</p>
-          <div className="flex gap-1">
-            <Button
-              className="size-6"
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                updateSelectedCategoryId(category.id);
-                updateCategoryDialogOpen(true);
-              }}
+      {categoriesQuery.isLoading ? (
+        <CategoryCardsSkeleton />
+      ) : (
+        <>
+          {categoriesQuery.data?.map((category) => (
+            <div
+              className="bg-accent flex flex-col justify-between gap-3 rounded-lg p-6 shadow-md"
+              key={category.id}
             >
-              <Edit />
-            </Button>
-            <Button
-              className="size-6"
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                alert({
-                  onConfirm: () => deleteCategoryMutation.mutate(category.id),
-                });
-              }}
-            >
-              <Trash />
-            </Button>
-          </div>
-        </div>
-      ))}
+              <p className="truncate">{category.name}</p>
+              <div className="flex gap-1">
+                <Button
+                  className="size-6"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    updateSelectedCategoryId(category.id);
+                    updateCategoryDialogOpen(true);
+                  }}
+                >
+                  <Edit />
+                </Button>
+                <Button
+                  className="size-6"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    alert({
+                      onConfirm: () =>
+                        deleteCategoryMutation.mutate(category.id),
+                    });
+                  }}
+                >
+                  <Trash />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }

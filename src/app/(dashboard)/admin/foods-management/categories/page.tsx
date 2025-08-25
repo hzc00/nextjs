@@ -1,9 +1,14 @@
 import CategoryCards from "@/app/(dashboard)/admin/foods-management/categories/_components/category-cards";
+import { CategoryFormDialog } from "@/app/(dashboard)/admin/foods-management/categories/_components/category-form-dialog";
 
 export default async function categoriesPage() {
   return (
     <>
-      <CategoryCards></CategoryCards>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-semibold">Category List</h1>
+        <CategoryFormDialog />
+      </div>
+      <CategoryCards />
     </>
   );
 }

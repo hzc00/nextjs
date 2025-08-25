@@ -4,8 +4,11 @@ import { Trash, Edit } from "lucide-react";
 import { useDeleteCategory } from "@/app/(dashboard)/admin/foods-management/categories/_services/use-category-mutations";
 import { useCategories } from "@/app/(dashboard)/admin/foods-management/categories/_services/use-category-queries";
 import { alert } from "@/lib/use-global-store";
+import { useCategoryStore } from "@/app/(dashboard)/admin/foods-management/categories/_libs/use-category-store";
 
 export default function CategoryCards() {
+  const { updateSelectedCategoryId, updateCategoryDialogOpen } =
+    useCategoryStore();
   const deleteCategoryMutation = useDeleteCategory();
   const categoriesQuery = useCategories();
   return (
@@ -21,7 +24,10 @@ export default function CategoryCards() {
               className="size-6"
               variant="ghost"
               size="icon"
-              onClick={() => {}}
+              onClick={() => {
+                updateSelectedCategoryId(category.id);
+                updateCategoryDialogOpen(true);
+              }}
             >
               <Edit />
             </Button>

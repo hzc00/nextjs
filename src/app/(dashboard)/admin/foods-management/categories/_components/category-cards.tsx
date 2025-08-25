@@ -6,12 +6,22 @@ import { useCategories } from "@/app/(dashboard)/admin/foods-management/categori
 import { alert } from "@/lib/use-global-store";
 import { useCategoryStore } from "@/app/(dashboard)/admin/foods-management/categories/_libs/use-category-store";
 import { CategoryCardsSkeleton } from "./category-cards-skeleton";
+import NoItemsFound from "@/components/no-items-found";
 
 export default function CategoryCards() {
   const { updateSelectedCategoryId, updateCategoryDialogOpen } =
     useCategoryStore();
   const deleteCategoryMutation = useDeleteCategory();
   const categoriesQuery = useCategories();
+  if (categoriesQuery.data?.length === 0)
+    return (
+      <NoItemsFound
+        onClick={() => {
+          updateSelectedCategoryId(null);
+          updateCategoryDialogOpen(true);
+        }}
+      />
+    );
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {categoriesQuery.isLoading ? (

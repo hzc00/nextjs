@@ -1,12 +1,12 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Trash, Edit } from "lucide-react";
-import { useCategoryMutations } from "@/app/(dashboard)/admin/foods-management/categories/_services/use-category-mutations";
+import { useDeleteCategory } from "@/app/(dashboard)/admin/foods-management/categories/_services/use-category-mutations";
 import { useCategories } from "@/app/(dashboard)/admin/foods-management/categories/_services/use-category-queries";
 import { alert } from "@/lib/use-global-store";
 
 export default function CategoryCards() {
-  const deleteCategoryMutation = useCategoryMutations();
+  const deleteCategoryMutation = useDeleteCategory();
   const categoriesQuery = useCategories();
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

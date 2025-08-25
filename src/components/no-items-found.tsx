@@ -18,4 +18,4 @@ const NoItemsFound = ({ onClick }: NotItemFoundProps) => {
   );
 };
 
-export default NoItemsFound;
+export { NoItemsFound };

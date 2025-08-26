@@ -39,7 +39,7 @@ model Food {
   updatedAt       DateTime          @updatedAt
   category        Category?         @relation(fields: [categoryId], references: [id])
   categoryId      Int?
-  foodServingUnit FoodServingUnit[]
+  foodServingUnits FoodServingUnit[]
   meal            Meal?             @relation(fields: [mealId], references: [id])
   mealId          Int?
   mealFoods       MealFoods[]

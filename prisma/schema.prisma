@@ -69,7 +69,6 @@ model FoodServingUnit {
   servingUnit   ServingUnit @relation(fields: [servingUnitId], references: [id])
   servingUnitId Int
   grams         Float
-  amount        Float
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }

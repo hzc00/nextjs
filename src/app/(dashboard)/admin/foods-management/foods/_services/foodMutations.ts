@@ -83,7 +83,7 @@ const updateFood = async (data: FoodSchema) => {
 const deleteFood = async (id: number) => {
  await executeAction({
     actionFn:async () => {
-        await db.foodServingUnit.deleteMany({ where: { id } });
+        await db.foodServingUnit.deleteMany({ where: { foodId: id } });
         await db.food.delete({ where: { id } });
     }
  })

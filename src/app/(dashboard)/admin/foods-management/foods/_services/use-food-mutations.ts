@@ -18,6 +18,7 @@ const useCreateFood = () => {
       toast.success("Food created successfully.");
       queryClient.invalidateQueries({ queryKey: ["foods"] });
     },
+    throwOnError: true,
   });
 };
 
@@ -28,10 +29,12 @@ const useUpdateFood = () => {
     mutationFn: async (data: FoodSchema) => {
       await updateFood(data);
     },
+
     onSuccess: () => {
       toast.success("Food updated successfully.");
       queryClient.invalidateQueries({ queryKey: ["foods"] });
     },
+    throwOnError: true,
   });
 };
 

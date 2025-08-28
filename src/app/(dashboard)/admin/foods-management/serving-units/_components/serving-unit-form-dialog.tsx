@@ -12,7 +12,7 @@ import {
   ServingUnitSchema,
 } from "@/app/(dashboard)/admin/foods-management/serving-units/_types/schema";
 import { Button } from "@/components/ui/button";
-import { ControlledInput } from "@/components/ui/controlled-input";
+import { ControlledInput } from "@/components/ui/controlled/controlled-input";
 import {
   Dialog,
   DialogContent,

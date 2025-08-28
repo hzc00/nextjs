@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { ControlledInput } from "@/components/ui/controlled-input";
+import { ControlledInput } from "@/components/ui/controlled/controlled-input";
 import { useEffect } from "react";
 type CategoryFormDialogProps = {
   smallTrigger?: boolean;

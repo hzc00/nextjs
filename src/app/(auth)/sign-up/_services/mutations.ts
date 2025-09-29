@@ -19,6 +19,7 @@ const signUp = async (data: SignUpSchema) => {
           name: validatedData.name,
           email: validatedData.email,
           password: await hashedPassword,
+          role: "USER",
         },
       });
     },

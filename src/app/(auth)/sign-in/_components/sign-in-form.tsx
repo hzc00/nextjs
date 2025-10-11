@@ -53,7 +53,7 @@ const SignInForm = () => {
           Don&apos;t have an account?{" "}
           <Link
             href="/sign-up"
-            className="text-primary font-medium hover:underline"
+            className="font-medium text-green-600 hover:underline"
           >
             Sign up
           </Link>

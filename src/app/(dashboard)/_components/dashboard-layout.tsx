@@ -29,9 +29,12 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTheme } from "next-themes";
+import { Session } from "next-auth";
+import { useSignOut } from "@/app/(auth)/sign-in/_services/use-mutations";
 
 type DashboardLayoutProps = {
   children: ReactNode;
+  session: Session;
 };
 
 type RouterGroupsProps = {
@@ -138,9 +141,25 @@ const RouteGroup = ({ group, items }: RouterGroupsProps) => {
   );
 };
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({
+  children,
+  session,
+}: DashboardLayoutProps) {
   const [open, setOpen] = useState(false);
   const { setTheme } = useTheme();
+  const userRole = session.user?.role || "user";
+  const signOutMutation = useSignOut();
+  const filterRouteGroups = ROUTE_GROUPS.filter((group) => {
+    if (userRole === "USER") {
+      return group.group === "Foods Management";
+    } else {
+      return group;
+    }
+  });
+
+  const handleLogout = () => {
+    signOutMutation.mutate();
+  };
   return (
     <div className="flex">
       <div className="bg-background fixed z-10 flex h-13 w-screen items-center justify-between border px-2">
@@ -182,7 +201,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <AvatarImage src="http://192.168.1.59:8082/profile/avatar/2025/07/29/blob_20250729142526A001.png" />
                   <AvatarFallback>A</AvatarFallback>
                 </Avatar>
-                <span className="hidden md:inline">John Doe</span>
+                <span className="hidden md:inline">{session.user?.name}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -191,12 +210,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="flex items-center gap-3 px-2 py-1.5">
                 <Avatar className="size-10">
                   <AvatarImage src="http://192.168.1.59:8082/profile/avatar/2025/07/29/blob_20250729142526A001.png" />
-                  <AvatarFallback>A</AvatarFallback>
+                  <AvatarFallback>{session.user?.name}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-sm font-medium">Admin</p>
+                  <p className="text-sm font-medium">{session.user?.name}</p>
                   <p className="text-muted-foreground text-xs">
-                    admin@test.com
+                    {session.user?.email}
                   </p>
                 </div>
               </div>
@@ -204,9 +223,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <DropdownMenuItem
                 variant="destructive"
                 className="text-red-700"
-                onClick={() => {
-                  console.log(1);
-                }}
+                onClick={handleLogout}
               >
                 <LogOut className="inline-block size-4" />
                 <span className="text-sm">Log out</span>
@@ -234,7 +251,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               <Separator className="my-2">
                 <div className="mt-4">
-                  {ROUTE_GROUPS.map((group) => (
+                  {filterRouteGroups.map((group) => (
                     <RouteGroup
                       key={group.group}
                       group={group.group}

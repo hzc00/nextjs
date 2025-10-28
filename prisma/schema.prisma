@@ -27,22 +27,22 @@ enum Role {
 }
 
 model Food {
-  id              Int               @id @default(autoincrement())
-  name            String            @unique
-  calories        Float?
-  protein         Float?
-  fat             Float?
-  carbohydrates   Float?
-  fiber           Float?
-  sugar           Float?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  category        Category?         @relation(fields: [categoryId], references: [id])
-  categoryId      Int?
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  calories         Float?
+  protein          Float?
+  fat              Float?
+  carbohydrates    Float?
+  fiber            Float?
+  sugar            Float?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  categoryId       Int?
   foodServingUnits FoodServingUnit[]
-  meal            Meal?             @relation(fields: [mealId], references: [id])
-  mealId          Int?
-  mealFoods       MealFoods[]
+  meal             Meal?             @relation(fields: [mealId], references: [id])
+  mealId           Int?
+  mealFoods        MealFoods[]
 }
 
 model Category {
@@ -95,4 +95,20 @@ model MealFoods {
   servingUnitId Int
   servingUnit   ServingUnit @relation(fields: [servingUnitId], references: [id])
   amount        Float
+}
+
+model Stock {
+  id              Int           @id @default(autoincrement())
+  name            String
+  total           Float
+  cost            Float
+  percent         Float         @default(0)
+  StockClassify   StockClassify @relation(fields: [stockClassifyId], references: [id])
+  stockClassifyId Int
+}
+
+model StockClassify {
+  id    Int     @id @default(autoincrement())
+  name  String
+  stock Stock[]
 }

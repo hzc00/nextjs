@@ -151,7 +151,7 @@ export default function DashboardLayout({
   const signOutMutation = useSignOut();
   const filterRouteGroups = ROUTE_GROUPS.filter((group) => {
     if (userRole === "USER") {
-      return group.group === "Foods Management";
+      return group.group === "Meals Management";
     } else {
       return group;
     }

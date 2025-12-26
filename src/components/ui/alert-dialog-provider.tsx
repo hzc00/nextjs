@@ -1,4 +1,4 @@
-import { useGlobalStore } from "@/lib/use-global-store";
+import { useGlobalStore } from "@/lib/useGlobalStore";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -8,7 +8,7 @@ type layoutProps = {
 const layout = async ({ children }: layoutProps) => {
   const session = await auth();
   if (!session) redirect("/sign-in");
-  if (session?.user?.role !== "ADMIN")
+  if (session?.user?.role === "ADMIN")
     redirect("/admin/foods-management/foods");
   return <div className="mx-auto max-w-7xl p-6">{children}</div>;
 };

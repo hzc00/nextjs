@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Trash, Edit } from "lucide-react";
 import { useDeleteCategory } from "@/app/(dashboard)/admin/foods-management/categories/_services/use-category-mutations";
 import { useCategories } from "@/app/(dashboard)/admin/foods-management/categories/_services/use-category-queries";
-import { alert } from "@/lib/use-global-store";
+import { alert } from "@/lib/useGlobalStore";
 import { useCategoryStore } from "@/app/(dashboard)/admin/foods-management/categories/_libs/use-category-store";
 import { NoItemsFound } from "@/components/no-items-found";
 

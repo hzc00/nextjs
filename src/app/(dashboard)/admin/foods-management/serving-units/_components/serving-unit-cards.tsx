@@ -6,7 +6,7 @@ import { useDeleteServingUnit } from "@/app/(dashboard)/admin/foods-management/s
 import { useServingUnits } from "@/app/(dashboard)/admin/foods-management/serving-units/_services/useQueries";
 import { NoItemsFound } from "@/components/no-items-found";
 import { Button } from "@/components/ui/button";
-import { alert } from "@/lib/use-global-store";
+import { alert } from "@/lib/useGlobalStore";
 import { Edit, Trash } from "lucide-react";
 
 const ServingUnitCards = () => {

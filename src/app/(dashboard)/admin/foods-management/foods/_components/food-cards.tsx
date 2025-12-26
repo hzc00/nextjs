@@ -7,7 +7,7 @@ import { NoItemsFound } from "@/components/no-items-found";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { Separator } from "@/components/ui/separator";
-import { alert } from "@/lib/use-global-store";
+import { alert } from "@/lib/useGlobalStore";
 import { Edit, Trash } from "lucide-react";
 
 const FoodCards = () => {

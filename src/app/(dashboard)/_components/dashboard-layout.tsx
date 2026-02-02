@@ -12,6 +12,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  PieChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,16 @@ type RouterGroupsProps = {
   }[];
 };
 const ROUTE_GROUPS: RouterGroupsProps[] = [
+  {
+    group: "Investment",
+    items: [
+      {
+        href: "/overView",
+        label: "Overview",
+        icon: <PieChart className="mr-2 size-3" />,
+      },
+    ],
+  },
   {
     group: "Foods Management",
     items: [
@@ -122,11 +133,10 @@ const RouteGroup = ({ group, items }: RouterGroupsProps) => {
                 asChild
               >
                 <Link
-                  className={`flex items-center rounded-md px-4 py-1 !text-green-500 transition-all ${
-                    pathname === item.href
-                      ? "bg-foreground/10 hover:bg-foreground/5"
-                      : "hover:bg-foreground/10"
-                  }`}
+                  className={`flex items-center rounded-md px-4 py-1 !text-green-500 transition-all ${pathname === item.href
+                    ? "bg-foreground/10 hover:bg-foreground/5"
+                    : "hover:bg-foreground/10"
+                    }`}
                   href={item.href}
                 >
                   {item.icon}

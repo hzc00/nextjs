@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCreateTransaction } from "../_services/use-transaction-mutations";
-import { MOCK_POSITIONS } from "@/data/mock-overview";
+import { useAssets } from "../_services/use-asset-queries";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -68,8 +68,11 @@ export function TransactionDialog({
 }: TransactionDialogProps) {
     const [isManual, setIsManual] = React.useState(false);
 
+    const { data: assets } = useAssets();
+    const assetOptions = assets || [];
+
     const form = useForm<FormValues>({
-        resolver: zodResolver(formSchema) as any, // Casting to any to bypass strict coercion type mismatch
+        resolver: zodResolver(formSchema) as any,
         defaultValues: {
             type: defaultType,
             code: defaultCode || "",
@@ -92,7 +95,10 @@ export function TransactionDialog({
     // Sync defaultCode to form and handle known names
     useEffect(() => {
         if (open) {
-            const known = MOCK_POSITIONS.find((p) => p.code === defaultCode);
+            // Try to find name from real assets first
+            const known = assetOptions.find((p) => p.code === defaultCode);
+            // Fallback to MOCK if strictly needed or just empty
+
             reset({
                 type: defaultType,
                 code: defaultCode || "",
@@ -102,17 +108,31 @@ export function TransactionDialog({
                 fee: 0,
                 date: new Date(),
             });
-            setIsManual(!defaultCode); // If no default code, default to manual? Or stay in select? 
-            // Actually, if no defaultCode (Global Record), usually we want to select existing OR create new.
-            // Let's default to Select mode unless explicit.
+
             if (!defaultCode) setIsManual(false);
         }
-    }, [open, defaultCode, defaultType, reset]);
+    }, [open, defaultCode, defaultType, reset, assetOptions]); // Added assetOptions dep
+
+    const { mutate: createTx, isPending } = useCreateTransaction({
+        onSuccess: () => {
+            onOpenChange(false);
+            reset(); // Clear form
+        }
+    });
 
     function onSubmit(values: FormValues) {
-        console.log("Transaction Submitted:", values);
-        onOpenChange(false);
-        // In a real app, you would call an API here
+        if (isPending) return;
+
+        createTx({
+            type: values.type,
+            assetCode: values.code,
+            assetName: values.name,
+            quantity: values.quantity,
+            price: values.price,
+            fee: values.fee || 0,
+            date: values.date,
+            notes: "",
+        });
     }
 
     const handleAssetSelect = (value: string) => {
@@ -122,7 +142,7 @@ export function TransactionDialog({
             setValue("name", "");
         } else {
             setIsManual(false);
-            const selected = MOCK_POSITIONS.find((p) => p.code === value);
+            const selected = assetOptions.find((p) => p.code === value);
             setValue("code", value);
             setValue("name", selected?.name || "");
         }
@@ -167,7 +187,7 @@ export function TransactionDialog({
                                 <FormLabel>Asset</FormLabel>
                                 <Select
                                     onValueChange={handleAssetSelect}
-                                    value={MOCK_POSITIONS.some(p => p.code === currentCode) ? currentCode : undefined}
+                                    value={assetOptions.some(p => p.code === currentCode) ? currentCode : undefined}
                                 >
                                     <FormControl>
                                         <SelectTrigger>
@@ -175,7 +195,7 @@ export function TransactionDialog({
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        {MOCK_POSITIONS.map((p) => (
+                                        {assetOptions.map((p) => (
                                             <SelectItem key={p.id} value={p.code}>
                                                 {p.name} ({p.code})
                                             </SelectItem>

@@ -9,18 +9,21 @@ export const useCreateTransaction = ({ onSuccess }: { onSuccess?: () => void } =
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (input: CreateTransactionInput) => createTransaction(input),
-        onSuccess: (data) => {
+        mutationFn: async (input: CreateTransactionInput) => {
+            await createTransaction(input);
+        },
+        onSuccess: () => {
+            toast.success("Transaction recorded successfully.");
             // Invalidate assets query to refresh list and calculations
             queryClient.invalidateQueries({ queryKey: ["assets"] });
             queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] });
             queryClient.invalidateQueries({ queryKey: ["overview-metrics"] });
+            queryClient.invalidateQueries({ queryKey: ["asset-allocation"] }); // Also invalidate allocation
 
             if (onSuccess) onSuccess();
         },
         onError: (error) => {
-            console.error("Failed to create transaction:", error);
-            // toast.error("Failed to record transaction");
+            toast.error(error.message || "Failed to record transaction");
         }
     });
 };

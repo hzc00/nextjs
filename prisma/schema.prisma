@@ -11,15 +11,16 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  meal      Meal[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  role      Role     @default(USER)
-  assets    Asset[]
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  email              String              @unique
+  password           String
+  meal               Meal[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  role               Role                @default(USER)
+  assets             Asset[]
+  portfolioSnapshots PortfolioSnapshot[]
 }
 
 enum Role {
@@ -164,4 +165,20 @@ model Transaction {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model PortfolioSnapshot {
+  id            Int      @id @default(autoincrement())
+  date          DateTime
+  totalNetWorth Float
+  totalCost     Float
+  totalProfit   Float
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
 }

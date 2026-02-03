@@ -8,6 +8,8 @@
 * **Charts:** ECharts (用于复杂金融曲线及资产配比)
 * **State Management:** React Query (TanStack Query) - 用于处理行情数据的实时性缓存
 * **参考现有项目架构去开发**，尽量按照现在目录架构去存放文件
+* **尽量使用现有工具和组件**，不要重复造轮子 src/lib里面有存放一些已经实现的工具 src/components里面有存放一些已经实现的组件
+
 
 
 ## 2. ui 组件设计原则

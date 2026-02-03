@@ -3,7 +3,7 @@
 ## 1. 技术栈选型
 * **Framework:** [Next.js 15+ (App Router)](https://nextjs.org/)
 * **Database ORM:** [Prisma](https://www.prisma.io/)
-* **Database:** SQLite (初期快速迭代方案)
+* **Database:** PostgreSQL 先本地使用
 * **UI Components:** [Shadcn UI](https://ui.shadcn.com/) (基于 Radix UI + Tailwind CSS)
 * **Charts:** ECharts (用于复杂金融曲线及资产配比)
 * **State Management:** React Query (TanStack Query) - 用于处理行情数据的实时性缓存

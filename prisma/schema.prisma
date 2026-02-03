@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -19,6 +19,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   role      Role     @default(USER)
+  assets    Asset[]
 }
 
 enum Role {
@@ -111,4 +112,56 @@ model StockClassify {
   id    Int     @id @default(autoincrement())
   name  String
   stock Stock[]
+}
+
+// --- Investment Dashboard Models ---
+
+enum AssetType {
+  STOCK
+  FUND
+  BOND
+  CRYPTO
+  OTHER
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DIVIDEND
+  TRANSFER
+}
+
+model Asset {
+  id           Int       @id @default(autoincrement())
+  code         String    @unique
+  name         String
+  type         AssetType @default(STOCK)
+  quantity     Float     @default(0)
+  avgCost      Float     @default(0)
+  currentPrice Float     @default(0)
+
+  transactions Transaction[]
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id          Int             @id @default(autoincrement())
+  type        TransactionType
+  quantity    Float
+  price       Float
+  fee         Float           @default(0)
+  totalAmount Float
+  date        DateTime
+  notes       String?
+
+  assetId Int
+  asset   Asset @relation(fields: [assetId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

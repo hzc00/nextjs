@@ -11,7 +11,7 @@
 
 
 ## 2. ui 组件设计原则
-1. 内容统一用英文
+1. 内容统一用英文，纯英文界面使用
 2. 页面内容统一使用响应式布局设计。
 
 
@@ -41,39 +41,6 @@ C. 极简记账 (Quick Log)
 
 逻辑联动： 记录保存后，自动更新对应账户的余额。
 
-3. 数据库设计 (Prisma + SQLite)
-// prisma/schema.prisma
-
-datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
-}
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-// 账户模型：代表你的钱包、银行卡或证券账户
-model Account {
-  id           String        @id @default(cuid())
-  name         String        // 账户名称，如：支付宝
-  type         String        // 类型：CASH(现金), STOCK(股票), FUND(基金)
-  balance      Float         @default(0) // 当前总余额
-  currency     String        @default("CNY")
-  transactions Transaction[]
-  updatedAt    DateTime      @updatedAt
-}
-
-// 交易记录：代表每一笔资金变动
-model Transaction {
-  id        String   @id @default(cuid())
-  accountId String
-  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  amount    Float    // 变动金额，正数为入，负数为出
-  category  String?  // 类别，如：工资、买入、消费
-  note      String?  // 备注
-  createdAt DateTime @default(now())
-}
 
 | 区域 | 推荐组件 | 描述 |
 | :--- | :--- | :--- |
@@ -89,5 +56,6 @@ model Transaction {
 
 关于图表： "请基于 ECharts 编写一个 AssetPie 组件，接收账户列表数据，展示不同 type 的金额总和比例。"
 
-6. 默认红涨绿跌，页面内容统一用英语，回复和代码注释使用中文
+6. 默认红涨绿跌，回复和代码注释使用中文
  
+7. 安装组件交给我我，因为我看到你经常需要等待很长时间，你汇总需要执行的安装命令，我来执行

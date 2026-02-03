@@ -8,11 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import {
     MOCK_ASSET_METRICS,
     MOCK_ACCOUNTS,
-    MOCK_TREND_DATA,
     MOCK_ALLOCATION_DATA,
+    MOCK_POSITIONS,
 } from "@/data/mock-overview";
-import { AssetTrendChart } from "@/components/charts/asset-trend-chart";
 import { AssetAllocationPie } from "@/components/charts/asset-allocation-pie";
+import { AssetTrendContainer } from "@/components/dashboard/asset-trend-container";
 
 export default function OverviewPage() {
     return (
@@ -67,21 +67,13 @@ export default function OverviewPage() {
             {/* 2. Charts Area */}
             <div className="grid gap-4 md:grid-cols-3">
                 {/* Left 2/3: Asset Trend */}
-                <Card className="col-span-2 shadow-sm">
-                    <CardHeader>
-                        <CardTitle>近七日资产走势</CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-[320px] p-0">
-                        <div className="h-full w-full">
-                            <AssetTrendChart data={MOCK_TREND_DATA} />
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Left 2/3: Asset Trend */}
+                <AssetTrendContainer />
 
                 {/* Right 1/3: Asset Allocation */}
                 <Card className="col-span-1 shadow-sm">
                     <CardHeader>
-                        <CardTitle>资产分布</CardTitle>
+                        <CardTitle>Asset Allocation</CardTitle>
                     </CardHeader>
                     <CardContent className="h-[320px] p-0 flex items-center justify-center">
                         <div className="h-full w-full">
@@ -91,42 +83,62 @@ export default function OverviewPage() {
                 </Card>
             </div>
 
-            {/* 3. Account Details Table */}
+            {/* 3. Positions Table */}
             <Card>
                 <CardHeader>
-                    <CardTitle>资金账户详情</CardTitle>
+                    <CardTitle>Positions</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>账户名称</TableHead>
-                                <TableHead>类型</TableHead>
-                                <TableHead className="text-right">当前余额</TableHead>
-                                <TableHead className="w-[30%]">占比</TableHead>
+                                <TableHead>Code</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead className="text-right">Price</TableHead>
+                                <TableHead className="text-right">Cost</TableHead>
+                                <TableHead className="text-right">Qty</TableHead>
+                                <TableHead className="text-right">Daily %</TableHead>
+                                <TableHead className="text-right">P&L</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {MOCK_ACCOUNTS.map((account) => {
-                                const percentage = (account.balance / account.totalAssets) * 100;
+                            {MOCK_POSITIONS.map((position) => {
+                                const isProfit = position.totalProfit >= 0;
+                                const isDailyUp = position.dailyChange >= 0;
+
                                 return (
-                                    <TableRow key={account.id}>
+                                    <TableRow key={position.id}>
+                                        <TableCell className="font-mono text-muted-foreground">
+                                            {position.code}
+                                        </TableCell>
                                         <TableCell className="font-medium">
-                                            {account.name}
+                                            {position.name}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline">{account.type}</Badge>
+                                            <Badge variant={position.assetType === "STOCK" ? "default" : "secondary"}>
+                                                {position.assetType}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-mono">
-                                            ¥{account.balance.toLocaleString()}
+                                            {position.currentPrice.toLocaleString()}
                                         </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Progress value={percentage} className="h-2" />
-                                                <span className="text-xs text-muted-foreground w-10">
-                                                    {percentage.toFixed(1)}%
-                                                </span>
-                                            </div>
+                                        <TableCell className="text-right font-mono text-muted-foreground">
+                                            {position.avgCost.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">
+                                            {position.quantity.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell className={`text-right font-bold ${isDailyUp ? "text-red-500" : "text-green-500"}`}>
+                                            {position.dailyChange > 0 ? "+" : ""}
+                                            {position.dailyChange}%
+                                        </TableCell>
+                                        <TableCell className={`text-right font-bold ${isProfit ? "text-red-500" : "text-green-500"}`}>
+                                            {position.totalProfit > 0 ? "+" : ""}
+                                            {position.totalProfit.toLocaleString(undefined, {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2,
+                                            })}
                                         </TableCell>
                                     </TableRow>
                                 );

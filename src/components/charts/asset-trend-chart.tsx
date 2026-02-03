@@ -9,9 +9,10 @@ interface AssetTrendChartProps {
         dates: string[];
         values: number[];
     };
+    isPercentage?: boolean;
 }
 
-export function AssetTrendChart({ data }: AssetTrendChartProps) {
+export function AssetTrendChart({ data, isPercentage = false }: AssetTrendChartProps) {
     const { theme } = useTheme();
 
     // 判断是否为暗黑模式以调整图表颜色
@@ -21,6 +22,11 @@ export function AssetTrendChart({ data }: AssetTrendChartProps) {
         backgroundColor: "transparent",
         tooltip: {
             trigger: "axis",
+            formatter: (params: any) => {
+                const date = params[0].axisValue;
+                const value = params[0].value;
+                return `${date}<br/>${params[0].marker} ${params[0].seriesName}: ${value}${isPercentage ? "%" : ""}`;
+            },
             axisPointer: {
                 type: "cross",
                 label: {
@@ -52,13 +58,16 @@ export function AssetTrendChart({ data }: AssetTrendChartProps) {
         yAxis: [
             {
                 type: "value",
+                axisLabel: {
+                    color: isDark ? "#9ca3af" : "#6b7280",
+                    formatter: (value: number) => {
+                        return `${value}${isPercentage ? "%" : ""}`;
+                    },
+                },
                 splitLine: {
                     lineStyle: {
                         color: isDark ? "#374151" : "#f3f4f6",
                     },
-                },
-                axisLabel: {
-                    color: isDark ? "#9ca3af" : "#6b7280",
                 },
             },
         ],

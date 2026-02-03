@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MOCK_POSITIONS } from "@/data/mock-overview";
-import { TransactionDialog } from "@/components/dashboard/transaction-dialog";
+import { TransactionDialog } from "./transaction-dialog";
 
 export function OverviewPositionsTable() {
     const [transactionOpen, setTransactionOpen] = useState(false);

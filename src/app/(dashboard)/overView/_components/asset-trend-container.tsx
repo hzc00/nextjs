@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { AssetTrendChart } from "@/components/charts/asset-trend-chart";
+import { AssetTrendChart } from "./charts/asset-trend-chart";
 import { MOCK_TREND_DATA } from "@/data/mock-overview";
 
 export function AssetTrendContainer() {

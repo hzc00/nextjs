@@ -2,8 +2,8 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AssetAllocationPie } from "@/components/charts/asset-allocation-pie";
-import { AssetTrendContainer } from "@/components/dashboard/asset-trend-container";
+import { AssetAllocationPie } from "./charts/asset-allocation-pie";
+import { AssetTrendContainer } from "./asset-trend-container";
 import { MOCK_ALLOCATION_DATA } from "@/data/mock-overview";
 
 export function OverviewCharts() {

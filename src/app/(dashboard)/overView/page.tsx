@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { OverviewMetricCards } from "./_components/overview-metric-cards";
 import { OverviewCharts } from "./_components/overview-charts";
 import { OverviewPositionsTable } from "./_components/overview-positions-table";
-import { TransactionDialog } from "@/components/dashboard/transaction-dialog";
+import { TransactionDialog } from "./_components/transaction-dialog";
 
 export default function OverviewPage() {
     const [globalTransactionOpen, setGlobalTransactionOpen] = useState(false);

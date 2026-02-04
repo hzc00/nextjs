@@ -57,6 +57,11 @@ function toTencentCode(code: string): string {
     if (code.endsWith('.SZ')) return `sz${code.replace('.SZ', '')}`;
     if (code.endsWith('.HK')) return `hk${code.replace('.HK', '')}`;
 
+    // 5 Digits (HK)
+    if (/^\d{5}$/.test(clean)) {
+        return `hk${clean}`;
+    }
+
     // 6 Digits (Guessing)
     if (/^\d{6}$/.test(clean)) {
         // Ambiguity: 000001 can be sz000001 (PingAn) or jj000001 (Huaxia Fund)
@@ -80,6 +85,7 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, any>> {
     if (uniqueCodes.length === 0) return new Map();
 
     const url = `http://qt.gtimg.cn/q=${uniqueCodes.join(',')}`;
+    console.log("Fetching Tencent:", url);
 
     try {
         const response = await fetch(url, { cache: 'no-store' });
@@ -116,6 +122,8 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, any>> {
                 name = values[1];
                 price = parseFloat(values[3]);
             }
+
+            console.log(`Parsed ${key}: ${name} - ${price}`);
 
             if (name && !isNaN(price)) {
                 results.set(key, { name, price, currency: key.startsWith('hk') ? 'HKD' : 'CNY' });
@@ -303,6 +311,7 @@ export const getAssetQuote = async (symbol: string) => {
             const dataMap = await fetchFromTencent([symbol]);
             const tCode = toTencentCode(symbol);
             const data = dataMap.get(tCode);
+            console.log(`getAssetQuote Tencent: ${symbol} -> ${tCode}`, data);
 
             if (data) {
                 return {

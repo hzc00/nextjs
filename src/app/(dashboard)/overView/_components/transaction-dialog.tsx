@@ -5,9 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCreateTransaction } from "../_services/use-transaction-mutations";
+import { useCreateTransaction } from "../_services/use-transaction-mutations"; import { searchAsset, getAssetQuote } from "../_services/market-actions";
+import { toast } from "sonner";
 import { useAssets } from "../_services/use-asset-queries";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ import {
     Popover,
     PopoverContent,
     PopoverTrigger,
+    PopoverAnchor,
 } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -67,6 +69,9 @@ export function TransactionDialog({
     defaultType = "BUY",
 }: TransactionDialogProps) {
     const [isManual, setIsManual] = React.useState(false);
+    const [searching, setSearching] = React.useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+    const [searchResults, setSearchResults] = React.useState<any[]>([]);
 
     const { data: assets } = useAssets();
     const assetOptions = assets || [];
@@ -213,9 +218,121 @@ export function TransactionDialog({
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Code</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g. 00700" {...field} />
-                                            </FormControl>
+                                            <div className="flex flex-col space-y-2 relative">
+                                                {/* Use a Popover for the Results List to escape Dialog clipping */}
+                                                <Popover
+                                                    open={isDropdownOpen}
+                                                    onOpenChange={(open) => {
+                                                        setIsDropdownOpen(open);
+                                                        if (!open) {
+                                                            // Optional: clear results on close? Or keep them?
+                                                            // User wants "Show every time". Keeping them allows re-opening to see old results.
+                                                            // But original logic cleared them. Let's keep original behavior:
+                                                            if (!open) setSearchResults([]);
+                                                        }
+                                                    }}
+                                                    modal={false}
+                                                >
+                                                    <PopoverAnchor asChild>
+                                                        <div className="flex space-x-2">
+                                                            <FormControl>
+                                                                <Input
+                                                                    placeholder="e.g. 518850 or Tencent"
+                                                                    {...field}
+                                                                    onChange={(e) => {
+                                                                        field.onChange(e);
+                                                                        // If cleared, close?
+                                                                        if (!e.target.value) {
+                                                                            setSearchResults([]);
+                                                                            setIsDropdownOpen(false);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </FormControl>
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="secondary"
+                                                                onClick={async () => {
+                                                                    if (searching) return;
+                                                                    const query = form.getValues("code");
+                                                                    if (!query) {
+                                                                        toast.error("Please enter a query first");
+                                                                        return;
+                                                                    }
+                                                                    setSearching(true);
+                                                                    setIsDropdownOpen(true);
+                                                                    const res = await searchAsset(query);
+                                                                    console.log('searchAsset', res);
+                                                                    setSearching(false);
+
+                                                                    if (res?.success && res.data && res.data.length > 0) {
+                                                                        setSearchResults(res.data);
+                                                                        toast.success(`Found ${res.data.length} results`);
+                                                                    } else {
+                                                                        setSearchResults([]);
+                                                                        toast.error("No results found");
+                                                                    }
+                                                                }}
+                                                            // disabled={searching} // Caused focus loss -> popover close
+                                                            >
+                                                                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                                            </Button>
+                                                        </div>
+                                                    </PopoverAnchor>
+
+                                                    <PopoverContent
+                                                        className="p-0"
+                                                        align="start"
+                                                        onOpenAutoFocus={(e) => e.preventDefault()}
+                                                        style={{ width: "var(--radix-popover-anchor-width)" }}
+                                                    >
+                                                        <div className="max-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                                            {searchResults.length === 0 ? (
+                                                                <div className="p-4 text-center text-sm text-muted-foreground">
+                                                                    {searching ? "Searching..." : "No results found"}
+                                                                </div>
+                                                            ) : (
+                                                                searchResults.map((item: any) => (
+                                                                    <div
+                                                                        key={item.symbol}
+                                                                        className="p-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer flex justify-between items-center"
+                                                                        onClick={async () => {
+                                                                            setValue("code", item.symbol);
+                                                                            setIsDropdownOpen(false);
+                                                                            setSearchResults([]); // Hide list
+
+                                                                            // Pre-fill name from search result (likely localized)
+                                                                            if (item.name) {
+                                                                                setValue("name", item.name);
+                                                                            }
+
+                                                                            toast.info(`Fetching details for ${item.symbol}...`);
+                                                                            const details = await getAssetQuote(item.symbol);
+                                                                            if (details?.success && details.data) {
+                                                                                // Only overwrite name if we don't have one yet from the search result
+                                                                                if (!item.name && details.data.name) {
+                                                                                    setValue("name", details.data.name);
+                                                                                }
+
+                                                                                setValue("price", details.data.price || 0);
+                                                                                toast.success("Details updated");
+                                                                            } else {
+                                                                                toast.error("Failed to fetch price details");
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <div className="flex flex-col">
+                                                                            <span className="font-medium">{item.symbol}</span>
+                                                                            <span className="text-muted-foreground text-xs">{item.name}</span>
+                                                                        </div>
+                                                                        <span className="text-xs text-muted-foreground border px-1 rounded">{item.exchange}</span>
+                                                                    </div>
+                                                                )))}
+                                                        </div>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
                                             <FormMessage />
                                         </FormItem>
                                     )}

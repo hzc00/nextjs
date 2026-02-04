@@ -1,12 +1,15 @@
 # 投资管理面板 (Investment Dashboard) 项目架构说明
 
 ## 1. 技术栈选型
+* **vercel** 部署
+* **supabase** 数据库
 * **Framework:** [Next.js 15+ (App Router)](https://nextjs.org/)
 * **Database ORM:** [Prisma](https://www.prisma.io/)
 * **Database:** PostgreSQL 先本地使用
 * **UI Components:** [Shadcn UI](https://ui.shadcn.com/) (基于 Radix UI + Tailwind CSS)
 * **Charts:** ECharts (用于复杂金融曲线及资产配比)
 * **State Management:** React Query (TanStack Query) - 用于处理行情数据的实时性缓存
+* **行情数据获取:** Yahoo Finance API (用于获取实时行情数据 https://jsr.io/@gadicc/yahoo-finance2)
 * **参考现有项目架构去开发**，尽量按照现在目录架构去存放文件
 * **尽量使用现有工具和组件**，不要重复造轮子 src/lib里面有存放一些已经实现的工具 src/components里面有存放一些已经实现的组件
 

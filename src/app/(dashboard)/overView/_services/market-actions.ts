@@ -1,6 +1,7 @@
 "use server";
 
 import db from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { executeAction } from "@/lib/executeAction";
 import { revalidatePath } from "next/cache";
 import YahooFinance from 'yahoo-finance2';
@@ -85,7 +86,7 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, any>> {
     if (uniqueCodes.length === 0) return new Map();
 
     const url = `http://qt.gtimg.cn/q=${uniqueCodes.join(',')}`;
-    console.log("Fetching Tencent:", url);
+
 
     try {
         const response = await fetch(url, { cache: 'no-store' });
@@ -116,14 +117,16 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, any>> {
             if (isFund) {
                 // Fund: v_jj000001="Code~Name~NAV~AccumulatedNAV~..."
                 name = values[1];
-                price = parseFloat(values[2]);
+                // Index 2 is often 0 or empty for funds. 
+                // Index 5 is commonly Unit NAV (Unit Net Value).
+                price = parseFloat(values[5]);
             } else {
                 // Stock (sh/sz/hk): v_sh600519="1~Name~Code~Price~..."
                 name = values[1];
                 price = parseFloat(values[3]);
             }
 
-            console.log(`Parsed ${key}: ${name} - ${price}`);
+
 
             if (name && !isNaN(price)) {
                 results.set(key, { name, price, currency: key.startsWith('hk') ? 'HKD' : 'CNY' });
@@ -258,7 +261,7 @@ export const searchAsset = async (query: string) => {
                 const text = iconv.decode(Buffer.from(buffer), 'gbk');
 
                 const lines = text.split(';');
-                console.log('lines', lines);
+
                 lines.forEach(line => {
                     const [lhs, rhs] = line.split('=');
                     if (!rhs || rhs.includes('v_pv_none')) return; // Check for 'none' response
@@ -292,7 +295,7 @@ export const searchAsset = async (query: string) => {
                 console.error("Tencent Search Fetch Error", err);
             }
         }
-        console.log('searchAsset', candidates);
+
         return {
             success: true,
             data: candidates
@@ -311,7 +314,7 @@ export const getAssetQuote = async (symbol: string) => {
             const dataMap = await fetchFromTencent([symbol]);
             const tCode = toTencentCode(symbol);
             const data = dataMap.get(tCode);
-            console.log(`getAssetQuote Tencent: ${symbol} -> ${tCode}`, data);
+
 
             if (data) {
                 return {
@@ -341,5 +344,40 @@ export const getAssetQuote = async (symbol: string) => {
     } catch (error) {
         console.error("Quote Error:", error);
         return { success: false, error: "Failed to fetch quote" };
+    }
+};
+
+export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number) => {
+    try {
+        const session = await auth();
+        const userId = session?.user?.id ? Number(session.user.id) : undefined;
+
+        // Use upsert to handle both create and update atomically
+        // This relies on 'code' being @unique in the schema
+        await db.asset.upsert({
+            where: { code: code },
+            update: {
+                quantity: quantity,
+                avgCost: avgCost,
+                // Only update name if a valid one is provided
+                ...(name ? { name } : {})
+            },
+            create: {
+                code: code,
+                name: name,
+                type: "STOCK",
+                quantity: quantity,
+                avgCost: avgCost,
+                currentPrice: avgCost,
+                userId: userId // If undefined, it will be null, which is allowed (Int?)
+            }
+        });
+
+        revalidatePath("/overView");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Update Position Error:", error);
+        // Return actual error message for debugging
+        return { success: false, error: error.message || "Failed to update position" };
     }
 };

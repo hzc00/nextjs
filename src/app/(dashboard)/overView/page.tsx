@@ -26,7 +26,7 @@ export default function OverviewPage() {
                     <RefreshPricesButton />
                     <Button onClick={() => setGlobalTransactionOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />
-                        Record
+                        Add Position
                     </Button>
                 </div>
             </header>
@@ -43,7 +43,6 @@ export default function OverviewPage() {
             <TransactionDialog
                 open={globalTransactionOpen}
                 onOpenChange={setGlobalTransactionOpen}
-                defaultType="BUY"
             />
         </div>
     );

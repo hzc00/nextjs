@@ -6,11 +6,27 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TransactionDialog } from "./transaction-dialog";
 import { useAssets } from "../_services/use-asset-queries";
-import { Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, Trash2 } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { deleteAsset } from "../_services/asset-queries";
 
 export function OverviewPositionsTable() {
     const [transactionOpen, setTransactionOpen] = useState(false);
     const [selectedCode, setSelectedCode] = useState<string | undefined>(undefined);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const queryClient = useQueryClient();
 
     // Use React Query Hook
     const { data: positions, isLoading, error } = useAssets();
@@ -18,6 +34,30 @@ export function OverviewPositionsTable() {
     const handleTrade = (code: string) => {
         setSelectedCode(code);
         setTransactionOpen(true);
+    };
+
+    const handleDeleteClick = (id: number) => {
+        setDeletingId(id);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingId) return;
+        setIsDeleting(true);
+        try {
+            const res = await deleteAsset(deletingId);
+            if (res?.success) {
+                toast.success("Asset deleted successfully");
+                // Invalidate query to refetch list
+                queryClient.invalidateQueries({ queryKey: ["assets"] });
+            } else {
+                toast.error("Failed to delete asset");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        } finally {
+            setIsDeleting(false);
+            setDeletingId(null);
+        }
     };
 
     if (isLoading) {
@@ -43,6 +83,7 @@ export function OverviewPositionsTable() {
     }
 
     const assetList = positions || [];
+    const totalPortfolioValue = assetList.reduce((sum, p) => sum + (p.totalValue || 0), 0);
 
     return (
         <>
@@ -58,8 +99,9 @@ export function OverviewPositionsTable() {
                                 <TableHead>Name</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead className="text-right">Price</TableHead>
-                                <TableHead className="text-right">Cost</TableHead>
-                                <TableHead className="text-right">Qty</TableHead>
+                                <TableHead className="text-right">Avg Cost</TableHead>
+                                <TableHead className="text-right">Market Value</TableHead>
+                                <TableHead className="text-right">Ratio</TableHead>
                                 <TableHead className="text-right">Daily %</TableHead>
                                 <TableHead className="text-right">P&L</TableHead>
                                 <TableHead className="text-right">Action</TableHead>
@@ -68,8 +110,8 @@ export function OverviewPositionsTable() {
                         <TableBody>
                             {assetList.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="text-center h-24 text-muted-foreground">
-                                        No assets found. Record your first transaction!
+                                    <TableCell colSpan={10} className="text-center h-24 text-muted-foreground">
+                                        No assets found. Add your first position!
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -77,6 +119,8 @@ export function OverviewPositionsTable() {
                                     const isProfit = (position.totalProfit || 0) >= 0;
                                     const dailyChange = position.dailyChange || 0;
                                     const isDailyUp = dailyChange >= 0;
+                                    const marketValue = position.totalValue || 0;
+                                    const ratio = totalPortfolioValue > 0 ? (marketValue / totalPortfolioValue) * 100 : 0;
 
                                     return (
                                         <TableRow key={position.id}>
@@ -97,8 +141,11 @@ export function OverviewPositionsTable() {
                                             <TableCell className="text-right font-mono text-muted-foreground">
                                                 {position.avgCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </TableCell>
-                                            <TableCell className="text-right font-mono">
-                                                {position.quantity.toLocaleString()}
+                                            <TableCell className="text-right font-mono font-medium">
+                                                {marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono text-muted-foreground">
+                                                {ratio.toFixed(2)}%
                                             </TableCell>
                                             <TableCell className={`text-right font-bold ${isDailyUp ? "text-red-500" : "text-green-500"}`}>
                                                 {dailyChange > 0 ? "+" : ""}
@@ -112,13 +159,23 @@ export function OverviewPositionsTable() {
                                                 })}
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleTrade(position.code)}
-                                                >
-                                                    Trade
-                                                </Button>
+                                                <div className="flex justify-end items-center">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleTrade(position.code)}
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="ml-2 text-muted-foreground hover:text-red-500"
+                                                        onClick={() => handleDeleteClick(position.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     );
@@ -133,8 +190,33 @@ export function OverviewPositionsTable() {
                 open={transactionOpen}
                 onOpenChange={setTransactionOpen}
                 defaultCode={selectedCode}
-                defaultType="BUY"
+                defaultType="RESET" // Default to RESET/EDIT mode now
             />
+
+            <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete this asset and all its associated transaction history.
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault();
+                                confirmDelete();
+                            }}
+                            disabled={isDeleting}
+                            className="bg-red-500 hover:bg-red-600"
+                        >
+                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

@@ -4,6 +4,7 @@ import db from "@/lib/db"; // Assuming this is where the prisma client instance 
 import { auth } from "@/lib/auth";
 import { AssetModel, AssetSchema } from "../_types/investment-schema";
 import { Prisma } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 
 
 
@@ -131,4 +132,34 @@ export const tryCreateDailySnapshot = async () => {
             totalProfit: summary.totalProfit
         }
     });
+};
+
+
+export const deleteAsset = async (assetId: number) => {
+    try {
+        // Check existence
+        const asset = await db.asset.findUnique({
+            where: { id: assetId }
+        });
+
+        if (!asset) {
+            throw new Error("Asset not found");
+        }
+
+        // Delete specific transactions first
+        await db.transaction.deleteMany({
+            where: { assetId: assetId }
+        });
+
+        // Delete Asset
+        await db.asset.delete({
+            where: { id: assetId }
+        });
+
+        revalidatePath("/overView");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Asset Error:", error);
+        return { success: false, error: "Failed to delete asset" };
+    }
 };

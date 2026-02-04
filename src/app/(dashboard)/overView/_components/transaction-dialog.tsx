@@ -1,13 +1,13 @@
+
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
-import { CalendarIcon, Loader2, Search } from "lucide-react";
+import { Loader2, Search, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCreateTransaction } from "../_services/use-transaction-mutations"; import { searchAsset, getAssetQuote } from "../_services/market-actions";
+import { searchAsset, getAssetQuote, updateAssetPosition } from "../_services/market-actions"; // Import updateAssetPosition
 import { toast } from "sonner";
 import { useAssets } from "../_services/use-asset-queries";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
+    FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,23 +35,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
-    PopoverAnchor,
 } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const formSchema = z.object({
-    type: z.enum(["BUY", "SELL", "DIVIDEND", "TRANSFER"]),
     code: z.string().min(1, "Please select or enter a code"),
-    name: z.string().min(1, "Please enter a name"), // Added name field
-    price: z.coerce.number().min(0, "Price must be positive"),
-    quantity: z.coerce.number().min(0, "Quantity must be positive"),
-    fee: z.coerce.number().min(0).optional(),
-    date: z.date(),
+    name: z.string().min(1, "Please enter a name"),
+    currentPrice: z.coerce.number().min(0.000001, "Current Price is required for calculation"),
+    marketValue: z.coerce.number().min(0, "Market Value must be positive"),
+    // Optional fields depending on mode
+    yieldRate: z.coerce.number().optional(),
+    costPrice: z.coerce.number().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -59,19 +58,21 @@ interface TransactionDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     defaultCode?: string;
-    defaultType?: "BUY" | "SELL";
+    defaultType?: string; // Kept for compatibility but unused or mapped
 }
 
 export function TransactionDialog({
     open,
     onOpenChange,
     defaultCode,
-    defaultType = "BUY",
 }: TransactionDialogProps) {
     const [isManual, setIsManual] = React.useState(false);
     const [searching, setSearching] = React.useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
     const [searchResults, setSearchResults] = React.useState<any[]>([]);
+
+    // Mode: "YIELD" (Input Yield -> Calc Cost) | "COST" (Input Cost -> Calc Yield)
+    const [mode, setMode] = useState<"YIELD" | "COST">("YIELD");
 
     const { data: assets } = useAssets();
     const assetOptions = assets || [];
@@ -79,296 +80,269 @@ export function TransactionDialog({
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
-            type: defaultType,
             code: defaultCode || "",
             name: "",
-            price: 0,
-            quantity: 0,
-            fee: 0,
-            date: new Date(),
+            currentPrice: 0,
+            marketValue: 0,
+            yieldRate: 0,
+            costPrice: 0,
         },
     });
 
-    const { watch, setValue, reset } = form;
-    const price = watch("price");
-    const quantity = watch("quantity");
-    const currentType = watch("type");
+    const { watch, setValue, reset, control } = form;
     const currentCode = watch("code");
+    const marketValue = watch("marketValue");
+    const yieldRate = watch("yieldRate");
+    const costPrice = watch("costPrice");
+    const currentPrice = watch("currentPrice");
 
-    const totalAmount = (price || 0) * (quantity || 0);
-
-    // Sync defaultCode to form and handle known names
+    // Initialize when opening
     useEffect(() => {
         if (open) {
-            // Try to find name from real assets first
+            setSearchResults([]); // Clear search results
             const known = assetOptions.find((p) => p.code === defaultCode);
-            // Fallback to MOCK if strictly needed or just empty
-
-            reset({
-                type: defaultType,
-                code: defaultCode || "",
-                name: known?.name || "",
-                price: 0,
-                quantity: 0,
-                fee: 0,
-                date: new Date(),
-            });
-
-            if (!defaultCode) setIsManual(false);
+            if (known) {
+                reset({
+                    code: known.code,
+                    name: known.name,
+                    currentPrice: known.currentPrice,
+                    marketValue: known.totalValue ? parseFloat(known.totalValue.toFixed(2)) : 0,
+                    // Default to YIELD mode inputs
+                    // If we have totalValue and cost, we can reverse calc yield
+                    yieldRate: known.totalCost && known.totalValue
+                        ? parseFloat((((known.totalValue - known.totalCost) / known.totalCost) * 100).toFixed(2))
+                        : 0,
+                    costPrice: known.avgCost || 0,
+                });
+                setIsManual(false);
+            } else {
+                reset({
+                    code: defaultCode || "",
+                    name: "",
+                    currentPrice: 0,
+                    marketValue: 0,
+                    yieldRate: 0,
+                    costPrice: 0,
+                });
+                if (!defaultCode) setIsManual(false);
+            }
         }
-    }, [open, defaultCode, defaultType, reset, assetOptions]); // Added assetOptions dep
+    }, [open, defaultCode, assetOptions, reset]);
 
-    const { mutate: createTx, isPending } = useCreateTransaction({
-        onSuccess: () => {
-            onOpenChange(false);
-            reset(); // Clear form
-        }
-    });
-
-    function onSubmit(values: FormValues) {
-        if (isPending) return;
-
-        createTx({
-            type: values.type,
-            assetCode: values.code,
-            assetName: values.name,
-            quantity: values.quantity,
-            price: values.price,
-            fee: values.fee || 0,
-            date: values.date,
-            notes: "",
-        });
-    }
-
-    const handleAssetSelect = (value: string) => {
+    const handleAssetSelect = async (value: string) => {
         if (value === "_MANUAL_") {
             setIsManual(true);
             setValue("code", "");
             setValue("name", "");
+            setValue("currentPrice", 0);
+            setSearchResults([]);
         } else {
             setIsManual(false);
             const selected = assetOptions.find((p) => p.code === value);
-            setValue("code", value);
-            setValue("name", selected?.name || "");
+            if (selected) {
+                setValue("code", value);
+                setValue("name", selected.name);
+                setValue("currentPrice", selected.currentPrice);
+                setValue("marketValue", selected.totalValue ? parseFloat(selected.totalValue.toFixed(2)) : 0);
+
+                // Pre-fill calc fields
+                const y = selected.totalCost && selected.totalValue
+                    ? ((selected.totalValue - selected.totalCost) / selected.totalCost) * 100
+                    : 0;
+                setValue("yieldRate", parseFloat(y.toFixed(2)));
+                setValue("costPrice", selected.avgCost);
+            }
+        }
+    };
+
+    // Derived Values for Display
+    const calculateResults = () => {
+        if (!currentPrice || currentPrice <= 0) return { qty: 0, cost: 0, derivedYield: 0 };
+
+        const qty = marketValue / currentPrice;
+        let derivedCost = 0;
+        let derivedYield = 0;
+
+        if (mode === "YIELD") {
+            // Given Yield, Calc Cost
+            // MV = Cost * (1 + Yield%)
+            // Cost = MV / (1 + Yield%)
+            const y = (yieldRate || 0) / 100;
+            const totalCost = marketValue / (1 + y);
+            derivedCost = totalCost / qty;
+            derivedYield = yieldRate || 0;
+        } else {
+            // Given Cost, Calc Yield
+            derivedCost = costPrice || 0;
+            const totalCost = derivedCost * qty;
+            if (totalCost !== 0) {
+                derivedYield = ((marketValue - totalCost) / totalCost) * 100;
+            }
+        }
+
+        return {
+            qty: isFinite(qty) ? qty : 0,
+            cost: isFinite(derivedCost) ? derivedCost : 0,
+            derivedYield: isFinite(derivedYield) ? derivedYield : 0
+        };
+    };
+
+    const results = calculateResults();
+
+    const onSubmit = async (values: FormValues) => {
+        if (!values.code) return;
+
+        // Final Calculation before submit
+        const finalQty = results.qty;
+        const finalCost = results.cost; // AvgCost
+
+        toast.loading("Updating position...");
+        const res = await updateAssetPosition(
+            values.code,
+            values.name,
+            finalQty,
+            finalCost
+        );
+
+        if (res.success) {
+            toast.dismiss();
+            toast.success("Position updated successfully");
+            onOpenChange(false);
+        } else {
+            toast.dismiss();
+            toast.error(res.error || "Failed to update position");
         }
     };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Record Transaction</DialogTitle>
+                    <DialogTitle>{defaultCode ? "Edit Position" : "Add New Position"}</DialogTitle>
                     <DialogDescription>
-                        Enter the details of your transaction.
+                        Update your asset position by specifying Market Value and Layout.
                     </DialogDescription>
                 </DialogHeader>
 
-                <Tabs
-                    defaultValue={defaultType}
-                    onValueChange={(val) => setValue("type", val as any)}
-                    className="w-full"
-                >
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger
-                            value="BUY"
-                            className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700 dark:data-[state=active]:bg-red-900/30 dark:data-[state=active]:text-red-400"
-                        >
-                            Buy
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="SELL"
-                            className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700 dark:data-[state=active]:bg-green-900/30 dark:data-[state=active]:text-green-400"
-                        >
-                            Sell
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
-
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-                        {/* Asset Selection / Input */}
-                        {!isManual ? (
-                            <FormItem>
-                                <FormLabel>Asset</FormLabel>
-                                <Select
-                                    onValueChange={handleAssetSelect}
-                                    value={assetOptions.some(p => p.code === currentCode) ? currentCode : undefined}
-                                >
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select asset" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {assetOptions.map((p) => (
-                                            <SelectItem key={p.id} value={p.code}>
-                                                {p.name} ({p.code})
-                                            </SelectItem>
-                                        ))}
-                                        <SelectItem value="_MANUAL_">+ Input Manually</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="code"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Code</FormLabel>
-                                            <div className="flex flex-col space-y-2 relative">
-                                                {/* Use a Popover for the Results List to escape Dialog clipping */}
-                                                <Popover
-                                                    open={isDropdownOpen}
-                                                    onOpenChange={(open) => {
-                                                        setIsDropdownOpen(open);
-                                                        if (!open) {
-                                                            // Optional: clear results on close? Or keep them?
-                                                            // User wants "Show every time". Keeping them allows re-opening to see old results.
-                                                            // But original logic cleared them. Let's keep original behavior:
-                                                            if (!open) setSearchResults([]);
-                                                        }
-                                                    }}
-                                                    modal={false}
-                                                >
-                                                    <PopoverAnchor asChild>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+
+                        {/* 1. Asset & Price Section */}
+                        <div className="p-3 bg-muted/40 rounded-lg space-y-3">
+                            {!isManual ? (
+                                <FormItem>
+                                    <FormLabel>Asset</FormLabel>
+                                    <Select
+                                        onValueChange={handleAssetSelect}
+                                        value={assetOptions.some(p => p.code === currentCode) ? currentCode : undefined}
+                                    >
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select existing asset" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {assetOptions.map((p) => (
+                                                <SelectItem key={p.id} value={p.code}>
+                                                    {p.name} ({p.code})
+                                                </SelectItem>
+                                            ))}
+                                            <SelectItem value="_MANUAL_">+ Add New Asset</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            ) : (
+                                <div className="space-y-3">
+                                    <FormField
+                                        control={control}
+                                        name="code"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-col relative">
+                                                <FormLabel>Code (Search)</FormLabel>
+                                                <Popover open={searching || searchResults.length > 0} onOpenChange={() => { }}>
+                                                    <PopoverTrigger asChild>
                                                         <div className="flex space-x-2">
                                                             <FormControl>
-                                                                <Input
-                                                                    placeholder="e.g. 518850 or Tencent"
-                                                                    {...field}
-                                                                    onChange={(e) => {
-                                                                        field.onChange(e);
-                                                                        // If cleared, close?
-                                                                        if (!e.target.value) {
-                                                                            setSearchResults([]);
-                                                                            setIsDropdownOpen(false);
-                                                                        }
-                                                                    }}
-                                                                />
+                                                                <Input placeholder="e.g. AAPL, 00700" {...field} />
                                                             </FormControl>
-                                                            <Button
-                                                                type="button"
-                                                                size="icon"
-                                                                variant="secondary"
-                                                                onClick={async () => {
-                                                                    if (searching) return;
-                                                                    const query = form.getValues("code");
-                                                                    if (!query) {
-                                                                        toast.error("Please enter a query first");
-                                                                        return;
-                                                                    }
-                                                                    setSearching(true);
-                                                                    setIsDropdownOpen(true);
-                                                                    const res = await searchAsset(query);
-                                                                    console.log('searchAsset', res);
-                                                                    setSearching(false);
-
-                                                                    if (res?.success && res.data && res.data.length > 0) {
+                                                            <Button type="button" size="icon" variant="outline" onClick={async () => {
+                                                                const q = field.value;
+                                                                if (!q) return;
+                                                                setSearching(true);
+                                                                try {
+                                                                    const res = await searchAsset(q);
+                                                                    if (res?.data?.length) {
                                                                         setSearchResults(res.data);
-                                                                        toast.success(`Found ${res.data.length} results`);
                                                                     } else {
+                                                                        toast.error("No results");
                                                                         setSearchResults([]);
-                                                                        toast.error("No results found");
                                                                     }
-                                                                }}
-                                                            // disabled={searching} // Caused focus loss -> popover close
-                                                            >
+                                                                } finally {
+                                                                    setSearching(false);
+                                                                }
+                                                            }}>
                                                                 {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                                                             </Button>
                                                         </div>
-                                                    </PopoverAnchor>
-
-                                                    <PopoverContent
-                                                        className="p-0"
-                                                        align="start"
-                                                        onOpenAutoFocus={(e) => e.preventDefault()}
-                                                        style={{ width: "var(--radix-popover-anchor-width)" }}
-                                                    >
-                                                        <div className="max-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                                            {searchResults.length === 0 ? (
-                                                                <div className="p-4 text-center text-sm text-muted-foreground">
-                                                                    {searching ? "Searching..." : "No results found"}
-                                                                </div>
-                                                            ) : (
-                                                                searchResults.map((item: any) => (
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                                        <div className="max-h-[200px] overflow-y-auto">
+                                                            {searchResults.length > 0 ? (
+                                                                searchResults.map((item) => (
                                                                     <div
                                                                         key={item.symbol}
-                                                                        className="p-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer flex justify-between items-center"
+                                                                        className="p-2 hover:bg-accent cursor-pointer border-b last:border-0 flex justify-between"
                                                                         onClick={async () => {
                                                                             setValue("code", item.symbol);
-                                                                            setIsDropdownOpen(false);
-                                                                            setSearchResults([]); // Hide list
+                                                                            if (item.name) setValue("name", item.name);
+                                                                            setSearchResults([]); // Close list
 
-                                                                            // Pre-fill name from search result (likely localized)
-                                                                            if (item.name) {
-                                                                                setValue("name", item.name);
-                                                                            }
-
-                                                                            toast.info(`Fetching details for ${item.symbol}...`);
-                                                                            const details = await getAssetQuote(item.symbol);
-                                                                            if (details?.success && details.data) {
-                                                                                // Only overwrite name if we don't have one yet from the search result
-                                                                                if (!item.name && details.data.name) {
-                                                                                    setValue("name", details.data.name);
-                                                                                }
-
-                                                                                setValue("price", details.data.price || 0);
-                                                                                toast.success("Details updated");
-                                                                            } else {
-                                                                                toast.error("Failed to fetch price details");
-                                                                            }
+                                                                            const quote = await getAssetQuote(item.symbol);
+                                                                            if (quote?.data?.price) setValue("currentPrice", quote.data.price);
                                                                         }}
                                                                     >
                                                                         <div className="flex flex-col">
-                                                                            <span className="font-medium">{item.symbol}</span>
-                                                                            <span className="text-muted-foreground text-xs">{item.name}</span>
+                                                                            <span className="font-bold text-sm">{item.symbol}</span>
+                                                                            <span className="text-xs text-muted-foreground">{item.name}</span>
                                                                         </div>
-                                                                        <span className="text-xs text-muted-foreground border px-1 rounded">{item.exchange}</span>
+                                                                        <div className="text-xs text-muted-foreground self-center">
+                                                                            {item.exchange}
+                                                                        </div>
                                                                     </div>
-                                                                )))}
+                                                                ))
+                                                            ) : (
+                                                                <div className="p-4 text-sm text-center text-muted-foreground">
+                                                                    {searching ? "Searching..." : "No results"}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </PopoverContent>
                                                 </Popover>
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Name</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g. Tencent" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                        )}
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={control}
+                                        name="name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Name</FormLabel>
+                                                <FormControl><Input {...field} /></FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                            )}
 
-                        {isManual && (
-                            <div className="flex justify-end">
-                                <Button variant="ghost" size="sm" onClick={() => setIsManual(false)} type="button">
-                                    Back to Selection
-                                </Button>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Price */}
                             <FormField
-                                control={form.control}
-                                name="price"
+                                control={control}
+                                name="currentPrice"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Price</FormLabel>
+                                        <FormLabel className="flex justify-between">
+                                            Current Price
+                                            <span className="text-xs text-muted-foreground font-normal">Required for Qty calc</span>
+                                        </FormLabel>
                                         <FormControl>
                                             <Input type="number" step="0.01" {...field} />
                                         </FormControl>
@@ -376,79 +350,95 @@ export function TransactionDialog({
                                     </FormItem>
                                 )}
                             />
+                        </div>
 
-                            {/* Quantity */}
+                        {/* 2. Core Inputs: Market Value & Mode */}
+                        <div className="grid grid-cols-2 gap-4">
                             <FormField
-                                control={form.control}
-                                name="quantity"
+                                control={control}
+                                name="marketValue"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Quantity</FormLabel>
+                                        <FormLabel>Total Market Value ($)</FormLabel>
                                         <FormControl>
-                                            <Input type="number" step="1" {...field} />
+                                            <Input className="text-lg font-bold" type="number" step="0.01" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    Calculation Mode
+                                </label>
+                                <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="YIELD">By Yield</TabsTrigger>
+                                        <TabsTrigger value="COST">By Cost</TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
+                            </div>
                         </div>
 
-                        {/* Calculated Total */}
-                        <div className="p-3 bg-muted rounded-md flex justify-between items-center">
-                            <span className="text-sm font-medium">Est. Total:</span>
-                            <span className="text-lg font-bold font-mono">
-                                {totalAmount.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                })}
-                            </span>
-                        </div>
-
-                        {/* Date Picker */}
-                        <FormField
-                            control={form.control}
-                            name="date"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>Date</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
+                        {/* 3. Mode Specific Inputs */}
+                        <div className="p-4 border rounded-md bg-accent/20">
+                            {mode === "YIELD" ? (
+                                <FormField
+                                    control={control}
+                                    name="yieldRate"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Current Yield Rate (%)</FormLabel>
                                             <FormControl>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn(
-                                                        "w-full pl-3 text-left font-normal",
-                                                        !field.value && "text-muted-foreground"
-                                                    )}
-                                                >
-                                                    {field.value ? (
-                                                        format(field.value, "PPP")
-                                                    ) : (
-                                                        <span>Pick a date</span>
-                                                    )}
-                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
+                                                <Input type="number" step="0.01" placeholder="e.g. 20.5" {...field} />
                                             </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar
-                                                mode="single"
-                                                selected={field.value}
-                                                onSelect={field.onChange}
-                                                disabled={(date) =>
-                                                    date > new Date() || date < new Date("1900-01-01")
-                                                }
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                </FormItem>
+                                            <FormDescription>
+                                                Positive for Profit, Negative for Loss.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            ) : (
+                                <FormField
+                                    control={control}
+                                    name="costPrice"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Average Cost Price</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" step="0.01" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                             )}
-                        />
+
+                            {/* Live Results Preview */}
+                            <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                                <div className="flex flex-col">
+                                    <span className="text-muted-foreground">Est. Quantity</span>
+                                    <span className="font-mono font-bold">{results.qty.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-muted-foreground">Avg Cost</span>
+                                    <span className={cn("font-mono font-bold", mode === "YIELD" && "text-blue-600")}>
+                                        {results.cost.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-muted-foreground">Yield</span>
+                                    <span className={cn("font-mono font-bold", results.derivedYield >= 0 ? "text-red-500" : "text-green-500")}>
+                                        {results.derivedYield > 0 ? "+" : ""}{(Number(results.derivedYield) || 0).toFixed(2)}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
 
                         <Button type="submit" className="w-full">
-                            Submit Transaction
+                            Update Position
                         </Button>
                     </form>
                 </Form>
@@ -456,3 +446,4 @@ export function TransactionDialog({
         </Dialog>
     );
 }
+

@@ -111,27 +111,34 @@ export const tryCreateDailySnapshot = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const existing = await db.portfolioSnapshot.findFirst({
-        where: {
-            userId,
-            date: today
-        }
-    });
-
-    if (existing) return; // Already snapped
-
     // Calculate current stats
     const summary = await getPortfolioSummary();
 
-    await db.portfolioSnapshot.create({
-        data: {
+    // Upsert snapshot for today to ensure it reflects latest state
+    await db.portfolioSnapshot.upsert({
+        where: {
+            userId_date: {
+                userId,
+                date: today
+            }
+        },
+        create: {
             userId,
             date: today,
             totalNetWorth: summary.totalNetWorth,
             totalCost: summary.totalCost,
             totalProfit: summary.totalProfit
+        },
+        update: {
+            totalNetWorth: summary.totalNetWorth,
+            totalCost: summary.totalCost,
+            totalProfit: summary.totalProfit
         }
     });
+
+    // Revalidate needed? Maybe not strictly if Client Component fetches.
+    // But good practice if server components use it.
+    revalidatePath("/overView");
 };
 
 
@@ -158,8 +165,55 @@ export const deleteAsset = async (assetId: number) => {
 
         revalidatePath("/overView");
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Delete Asset Error:", error);
-        return { success: false, error: "Failed to delete asset" };
+        return { success: false, error: error.message || "Failed to delete" };
     }
+};
+
+export const getAllocationGap = async () => {
+    const session = await auth();
+    const userId = session?.user?.id ? Number(session.user.id) : null;
+
+    // Match logic in market-actions: allow null userId
+    const where = userId ? { userId } : { userId: null };
+    // Note: getAssets uses {} for no user, which returns all. 
+    // Here we are stricter to match AssetClass behavior. 
+    // If getAssets is returning all, we might need to adjust, but let's try strict first.
+
+    const [classes, assets] = await Promise.all([
+        db.assetClass.findMany({ where: where }),
+        db.asset.findMany({ where: where })
+    ]);
+
+    const totalValue = assets.reduce((sum, a) => sum + (a.currentPrice * a.quantity), 0);
+    if (totalValue === 0) return [];
+
+    const result = classes.map(c => {
+        const classAssets = assets.filter(a => a.assetClassId === c.id);
+        const classValue = classAssets.reduce((sum, a) => sum + (a.currentPrice * a.quantity), 0);
+        const actualPercent = (classValue / totalValue) * 100;
+
+        return {
+            name: c.name,
+            actual: Number(actualPercent.toFixed(1)),
+            target: c.targetPercent,
+            color: c.color
+        };
+    });
+
+    // Check for Unclassified
+    const unclassifiedAssets = assets.filter(a => !a.assetClassId);
+    if (unclassifiedAssets.length > 0) {
+        const unclassValue = unclassifiedAssets.reduce((sum, a) => sum + (a.currentPrice * a.quantity), 0);
+        const unclassPercent = (unclassValue / totalValue) * 100;
+        result.push({
+            name: "Unclassified",
+            actual: Number(unclassPercent.toFixed(1)),
+            target: 0,
+            color: "#94a3b8" // Slate 400
+        });
+    }
+
+    return result;
 };

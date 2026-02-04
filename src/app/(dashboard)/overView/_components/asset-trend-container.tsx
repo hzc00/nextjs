@@ -18,7 +18,8 @@ export function AssetTrendContainer() {
     // If no data, use empty array
     const rawData = (snapshots || []).map(s => ({
         date: s.date,
-        value: s.value
+        value: s.value,
+        cost: s.cost || 0
     }));
 
     // Filter based on range (Mocking filtering for now or just show all if small)
@@ -26,13 +27,12 @@ export function AssetTrendContainer() {
     // Ideally we filter by date relative to now.
 
     const displayValues = showPercentage
-        ? rawData.map((item, i, arr) => {
-            if (i === 0) return 0;
-            const startVal = arr[0].value;
-            if (startVal === 0) return 0;
-            return Number((((item.value - startVal) / startVal) * 100).toFixed(2));
+        ? rawData.map((item) => {
+            if (item.cost === 0) return 0;
+            // Calculate Absolute Yield: (Value - Cost) / Cost
+            return Number((((item.value - item.cost) / item.cost) * 100).toFixed(2));
         })
-        : rawData.map(d => d.value);
+        : rawData.map(d => Number(d.value.toFixed(2)));
 
     const chartData = {
         dates: rawData.map(d => d.date),

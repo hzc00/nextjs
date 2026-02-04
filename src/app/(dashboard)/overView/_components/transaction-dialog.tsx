@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, Search, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { searchAsset, getAssetQuote, updateAssetPosition } from "../_services/market-actions"; // Import updateAssetPosition
+import { updateAssetPosition, searchAsset, getAssetQuote, getAssetClasses } from "../_services/market-actions"; // Import updateAssetPosition
 import { toast } from "sonner";
 import { useAssets } from "../_services/use-asset-queries";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ const formSchema = z.object({
     // Optional fields depending on mode
     yieldRate: z.coerce.number().optional(),
     costPrice: z.coerce.number().optional(),
+    assetClassId: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -68,7 +69,6 @@ export function TransactionDialog({
 }: TransactionDialogProps) {
     const [isManual, setIsManual] = React.useState(false);
     const [searching, setSearching] = React.useState(false);
-    const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
     const [searchResults, setSearchResults] = React.useState<any[]>([]);
 
     // Mode: "YIELD" (Input Yield -> Calc Cost) | "COST" (Input Cost -> Calc Yield)
@@ -96,6 +96,14 @@ export function TransactionDialog({
     const costPrice = watch("costPrice");
     const currentPrice = watch("currentPrice");
 
+    const [assetClasses, setAssetClasses] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (open) {
+            getAssetClasses().then(setAssetClasses);
+        }
+    }, [open]);
+
     // Initialize when opening
     useEffect(() => {
         if (open) {
@@ -113,6 +121,7 @@ export function TransactionDialog({
                         ? parseFloat((((known.totalValue - known.totalCost) / known.totalCost) * 100).toFixed(2))
                         : 0,
                     costPrice: known.avgCost || 0,
+                    assetClassId: known.assetClassId ? String(known.assetClassId) : undefined
                 });
                 setIsManual(false);
             } else {
@@ -123,6 +132,7 @@ export function TransactionDialog({
                     marketValue: 0,
                     yieldRate: 0,
                     costPrice: 0,
+                    assetClassId: undefined
                 });
                 if (!defaultCode) setIsManual(false);
             }
@@ -201,7 +211,8 @@ export function TransactionDialog({
             values.code,
             values.name,
             finalQty,
-            finalCost
+            finalCost,
+            values.assetClassId ? Number(values.assetClassId) : undefined
         );
 
         if (res.success) {
@@ -347,6 +358,34 @@ export function TransactionDialog({
                                             <Input type="number" step="0.01" {...field} />
                                         </FormControl>
                                         <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={control}
+                                name="assetClassId"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Strategy Tag</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="None" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="0">None</SelectItem>
+                                                {assetClasses.map((c) => (
+                                                    <SelectItem key={c.id} value={String(c.id)}>
+                                                        <span className="flex items-center">
+                                                            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: c.color }}></div>
+                                                            {c.name}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </FormItem>
                                 )}
                             />

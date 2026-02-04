@@ -347,7 +347,71 @@ export const getAssetQuote = async (symbol: string) => {
     }
 };
 
-export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number) => {
+import { tryCreateDailySnapshot } from "./asset-queries";
+
+// --- Asset Class Actions ---
+
+export const getAssetClasses = async () => {
+    const session = await auth();
+    const userId = session?.user?.id ? Number(session.user.id) : undefined;
+    // Allow fetching if no userId (anonymous) to match Asset behavior, or restrict?
+    // If strict match:
+    const where = userId ? { userId } : { userId: null };
+
+    // However, if Prisma treats null as separate value, we need to be careful.
+    // If we want "global" default classes, we might query OR.
+    // For now, simple user isolation:
+    return db.assetClass.findMany({
+        where: where,
+        orderBy: { targetPercent: 'desc' }
+    });
+};
+
+export const upsertAssetClass = async (id: number | undefined, name: string, color: string, targetPercent: number) => {
+    try {
+        const session = await auth();
+        const userId = session?.user?.id ? Number(session.user.id) : null;
+        // if (!userId) return { success: false, error: "Unauthorized" }; 
+        // Allow anonymous creation to match Asset creation
+
+        if (id) {
+            await db.assetClass.update({
+                where: { id },
+                data: { name, color, targetPercent }
+            });
+        } else {
+            await db.assetClass.create({
+                data: { userId, name, color, targetPercent }
+            });
+        }
+        revalidatePath("/overView");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Upsert Asset Class Error:", error);
+        // Handle Unique Constraint
+        if (error.code === 'P2002') {
+            return { success: false, error: "Class name already exists" };
+        }
+        return { success: false, error: error.message || "Failed to save asset class" };
+    }
+};
+
+export const deleteAssetClass = async (id: number) => {
+    try {
+        const session = await auth();
+        const userId = session?.user?.id ? Number(session.user.id) : undefined;
+        if (!userId) return { success: false, error: "Unauthorized" };
+
+        await db.assetClass.delete({ where: { id } });
+        revalidatePath("/overView");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Class Error:", error);
+        return { success: false, error: "Failed to delete asset class" };
+    }
+};
+
+export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number, assetClassId?: number) => {
     try {
         const session = await auth();
         const userId = session?.user?.id ? Number(session.user.id) : undefined;
@@ -360,7 +424,8 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
                 quantity: quantity,
                 avgCost: avgCost,
                 // Only update name if a valid one is provided
-                ...(name ? { name } : {})
+                ...(name ? { name } : {}),
+                assetClassId: assetClassId
             },
             create: {
                 code: code,
@@ -369,9 +434,13 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
                 quantity: quantity,
                 avgCost: avgCost,
                 currentPrice: avgCost,
-                userId: userId // If undefined, it will be null, which is allowed (Int?)
+                userId: userId, // If undefined, it will be null, which is allowed (Int?)
+                assetClassId: assetClassId
             }
         });
+
+        // Update Snapshot immediately
+        await tryCreateDailySnapshot();
 
         revalidatePath("/overView");
         return { success: true };

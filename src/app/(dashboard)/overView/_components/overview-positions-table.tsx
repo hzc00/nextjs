@@ -152,11 +152,20 @@ export function OverviewPositionsTable() {
                                                 {dailyChange}%
                                             </TableCell>
                                             <TableCell className={`text-right font-bold ${isProfit ? "text-red-500" : "text-green-500"}`}>
-                                                {(position.totalProfit || 0) > 0 ? "+" : ""}
-                                                {(position.totalProfit || 0).toLocaleString(undefined, {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2,
-                                                })}
+                                                <div className="flex flex-col items-end">
+                                                    <span>
+                                                        {(position.totalProfit || 0) > 0 ? "+" : ""}
+                                                        {(position.totalProfit || 0).toLocaleString(undefined, {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}
+                                                    </span>
+                                                    <span className="text-xs opacity-80">
+                                                        {(position.totalProfit && position.totalCost)
+                                                            ? `${(position.totalProfit / position.totalCost * 100).toFixed(2)}%`
+                                                            : "0.00%"}
+                                                    </span>
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end items-center">

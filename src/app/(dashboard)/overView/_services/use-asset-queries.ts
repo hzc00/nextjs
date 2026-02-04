@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getAssets, getPortfolioSummary, getAssetAllocation, getPortfolioSnapshots } from "./asset-queries";
+import { getAssets, getPortfolioSummary, getAssetAllocation, getPortfolioSnapshots, getAllocationGap } from "./asset-queries";
 
 export const useAssets = () => {
     return useQuery({
@@ -26,5 +26,12 @@ export const usePortfolioSnapshots = () => {
     return useQuery({
         queryKey: ["portfolio-snapshots"],
         queryFn: () => getPortfolioSnapshots(),
+    });
+};
+
+export function useAllocationGap() {
+    return useQuery({
+        queryKey: ["allocationGap"],
+        queryFn: getAllocationGap
     });
 };

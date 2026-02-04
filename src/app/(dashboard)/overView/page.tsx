@@ -9,9 +9,12 @@ import { OverviewPositionsTable } from "./_components/overview-positions-table";
 import { RefreshPricesButton } from "./_components/refresh-prices-button";
 import { tryCreateDailySnapshot } from "./_services/asset-queries";
 import { TransactionDialog } from "./_components/transaction-dialog";
+import { StrategyManageDialog } from "./_components/strategy-manage-dialog";
+import { Settings2 } from "lucide-react";
 
 export default function OverviewPage() {
     const [globalTransactionOpen, setGlobalTransactionOpen] = useState(false);
+    const [strategyOpen, setStrategyOpen] = useState(false);
 
     React.useEffect(() => {
         // Try to create a snapshot when visiting the page
@@ -24,6 +27,10 @@ export default function OverviewPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
                 <div className="flex items-center space-x-2">
                     <RefreshPricesButton />
+                    <Button variant="outline" onClick={() => setStrategyOpen(true)}>
+                        <Settings2 className="mr-2 h-4 w-4" />
+                        Configure Strategy
+                    </Button>
                     <Button onClick={() => setGlobalTransactionOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />
                         Add Position
@@ -43,6 +50,11 @@ export default function OverviewPage() {
             <TransactionDialog
                 open={globalTransactionOpen}
                 onOpenChange={setGlobalTransactionOpen}
+            />
+
+            <StrategyManageDialog
+                open={strategyOpen}
+                onOpenChange={setStrategyOpen}
             />
         </div>
     );

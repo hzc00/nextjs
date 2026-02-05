@@ -40,7 +40,7 @@ type MealFormDialogProps = {
 const MealFormDialog = ({ smallTrigger, session }: MealFormDialogProps) => {
   const form = useForm<MealSchema>({
     defaultValues: mealDefaultValues,
-    resolver: zodResolver(mealSchema),
+    resolver: zodResolver(mealSchema) as unknown as import("react-hook-form").Resolver<MealSchema>,
   });
 
   const userId = useWatch({ control: form.control, name: "userId" });

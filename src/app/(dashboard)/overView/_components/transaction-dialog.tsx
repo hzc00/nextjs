@@ -49,6 +49,7 @@ interface TransactionDialogProps {
     defaultType?: string; // Kept for compatibility but unused or mapped
 }
 
+
 export function TransactionDialog({
     open,
     onOpenChange,
@@ -56,7 +57,7 @@ export function TransactionDialog({
 }: TransactionDialogProps) {
     const [isManual, setIsManual] = React.useState(false);
     const [searching, setSearching] = React.useState(false);
-    const [searchResults, setSearchResults] = React.useState([]);
+    const [searchResults, setSearchResults] = React.useState<any[]>([]);
 
     // Mode: "YIELD" (Input Yield -> Calc Cost) | "COST" (Input Cost -> Calc Yield)
     const [mode, setMode] = useState<"YIELD" | "COST">("YIELD");

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { alert } from "@/lib/useGlobalStore";
+import { Prisma } from "@prisma/client";
 import { format } from "date-fns";
 import {
   CalendarX,
@@ -19,6 +20,11 @@ import {
   Utensils,
 } from "lucide-react";
 
+import { getMeals } from "@/app/(dashboard)/client/_services/meal-queries";
+
+type MealData = Awaited<ReturnType<typeof getMeals>>[number];
+type MealFoodData = MealData["mealFoods"][number];
+
 const MealCards = () => {
   const { updateSelectedMealId, updateMealDialogOpen, mealFilters } =
     useMealsStore();
@@ -27,18 +33,18 @@ const MealCards = () => {
 
   const deleteMealMutation = useDeleteMeal();
 
-  const calculateTotalCalories = (mealFoods: any) => {
-    return mealFoods.reduce((total: number, mealFood: any) => {
-      const foodCalories = mealFood.food.calories * mealFood.amount || 0;
+  const calculateTotalCalories = (mealFoods: MealFoodData[]) => {
+    return mealFoods.reduce((total: number, mealFood: MealFoodData) => {
+      const foodCalories = (mealFood.food.calories || 0) * mealFood.amount || 0;
       return total + foodCalories;
     }, 0);
   };
 
-  const calculateNutritionTotals = (meals: any) => {
+  const calculateNutritionTotals = (meals: MealData[]) => {
     return (
       meals?.reduce(
-        (totals: any, meal: any) => {
-          meal.mealFoods.forEach((mealFood: any) => {
+        (totals, meal) => {
+          meal.mealFoods.forEach((mealFood) => {
             const multiplier = mealFood.amount || 1;
             totals.calories += (mealFood.food.calories || 0) * multiplier;
             totals.protein += (mealFood.food.protein || 0) * multiplier;
@@ -54,7 +60,7 @@ const MealCards = () => {
     );
   };
 
-  const nutritionTotals = calculateNutritionTotals(mealsQuery.data);
+  const nutritionTotals = calculateNutritionTotals(mealsQuery.data || []);
 
   const displayDate = mealFilters.dateTime
     ? format(new Date(mealFilters.dateTime), "EEEE, MMMM d, yyyy")

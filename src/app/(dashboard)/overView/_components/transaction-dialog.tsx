@@ -56,13 +56,13 @@ export function TransactionDialog({
 }: TransactionDialogProps) {
     const [isManual, setIsManual] = React.useState(false);
     const [searching, setSearching] = React.useState(false);
-    const [searchResults, setSearchResults] = React.useState<any[]>([]);
+    const [searchResults, setSearchResults] = React.useState([]);
 
     // Mode: "YIELD" (Input Yield -> Calc Cost) | "COST" (Input Cost -> Calc Yield)
     const [mode, setMode] = useState<"YIELD" | "COST">("YIELD");
 
     const { data: assets } = useAssets();
-    const assetOptions = assets || [];
+    const assetOptions = React.useMemo(() => assets || [], [assets]);
 
     const form = useForm<UpdatePositionFormValues>({
         resolver: zodResolver(UpdatePositionSchema) as unknown as import("react-hook-form").Resolver<UpdatePositionFormValues>,

@@ -241,7 +241,7 @@ export const searchAsset = async (query: string) => {
         if (source === 'TENCENT') {
             // Heuristic: Try as Stock (autodetect sh/sz) and Fund (jj)
             // We construct potential tencent codes
-            let potentialCodes: string[] = [];
+            const potentialCodes: string[] = [];
 
             // Fund
             potentialCodes.push(`jj${query}`);

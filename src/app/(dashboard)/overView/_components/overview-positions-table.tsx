@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TransactionDialog } from "./transaction-dialog";
 import { useAssets, useDeleteAsset } from "../_services/use-asset-queries";
-import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2 } from "lucide-react";
 import {
     AlertDialog,
@@ -18,7 +17,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
 // deleteAsset removed
 
 export function OverviewPositionsTable() {

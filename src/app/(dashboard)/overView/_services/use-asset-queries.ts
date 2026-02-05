@@ -15,35 +15,35 @@ export const useAssets = () => {
 export const usePortfolioSummary = () => {
     return useQuery({
         queryKey: ["portfolio-summary"],
-        queryFn: getPortfolioSummary,
+        queryFn: () => getPortfolioSummary(),
     });
 };
 
 export const useAssetAllocation = () => {
     return useQuery({
         queryKey: ["asset-allocation"],
-        queryFn: getAssetAllocation,
+        queryFn: () => getAssetAllocation(),
     });
 };
 
 export const usePortfolioSnapshots = () => {
     return useQuery({
         queryKey: ["portfolio-snapshots"],
-        queryFn: getPortfolioSnapshots,
+        queryFn: () => getPortfolioSnapshots(),
     });
 };
 
 export function useAllocationGap() {
     return useQuery({
         queryKey: ["allocationGap"],
-        queryFn: getAllocationGap
+        queryFn: () => getAllocationGap()
     });
 }
 
 export function useAssetClasses() {
     return useQuery({
         queryKey: ["assetClasses"],
-        queryFn: getAssetClasses
+        queryFn: () => getAssetClasses()
     });
 }
 

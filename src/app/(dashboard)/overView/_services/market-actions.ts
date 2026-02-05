@@ -426,6 +426,15 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
             throw new Error("User not found");
         }
 
+        // Validate assetClassId if provided (prevents P2003 if stale ID passed)
+        if (assetClassId) {
+            const cls = await db.assetClass.findUnique({ where: { id: assetClassId } });
+            if (!cls) {
+                console.warn(`AssetClass ${assetClassId} not found, ignoring.`);
+                assetClassId = undefined;
+            }
+        }
+
         await db.asset.upsert({
             where: {
                 userId_code: {

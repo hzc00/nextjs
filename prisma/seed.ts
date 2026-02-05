@@ -60,8 +60,11 @@ async function main() {
   ];
 
   for (const pos of positions) {
-    const existingAsset = await prisma.asset.findUnique({
-      where: { code: pos.code }
+    const existingAsset = await prisma.asset.findFirst({
+      where: {
+        code: pos.code,
+        userId: adminUser.id
+      }
     });
 
     if (!existingAsset) {

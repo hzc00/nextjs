@@ -33,7 +33,7 @@ export const getAssets = async (): Promise<AssetModel[]> => {
 
         return {
             ...asset,
-            type: asset.type as any,
+            type: asset.type as AssetModel['type'],
             totalValue,
             totalCost,
             totalProfit,

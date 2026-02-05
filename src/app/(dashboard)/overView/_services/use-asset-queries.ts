@@ -67,7 +67,7 @@ export function useUpdateAssetPosition() {
             queryClient.invalidateQueries({ queryKey: ["allocationGap"] });
             queryClient.invalidateQueries({ queryKey: ["portfolio-snapshots"] });
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             toast.error(error.message || "Failed to update position");
         }
     });
@@ -79,7 +79,7 @@ export function useDeleteAsset() {
     return useMutation({
         mutationFn: async (id: number) => {
             const res = await deleteAsset(id);
-            if (!res.success) throw new Error((res as any).error || "Failed to delete");
+            if (!res.success) throw new Error(res.error || "Failed to delete");
             return res;
         },
         onSuccess: () => {
@@ -89,7 +89,7 @@ export function useDeleteAsset() {
             queryClient.invalidateQueries({ queryKey: ["asset-allocation"] });
             queryClient.invalidateQueries({ queryKey: ["allocationGap"] });
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             toast.error(error.message || "Failed to delete asset");
         }
     });
@@ -109,7 +109,7 @@ export function useUpsertAssetClass() {
             queryClient.invalidateQueries({ queryKey: ["assetClasses"] });
             queryClient.invalidateQueries({ queryKey: ["allocationGap"] });
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             toast.error(error.message || "Failed to save strategy");
         }
     });
@@ -127,7 +127,7 @@ export function useDeleteAssetClass() {
             queryClient.invalidateQueries({ queryKey: ["assetClasses"] });
             queryClient.invalidateQueries({ queryKey: ["allocationGap"] });
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             toast.error(error.message || "Failed to delete class");
         }
     });

@@ -81,7 +81,7 @@ export function StrategyManageDialog({ open, onOpenChange }: Props) {
         }
     };
 
-    const updateField = (idx: number, field: keyof AssetClass, value: any) => {
+    const updateField = (idx: number, field: keyof AssetClass, value: string | number) => {
         const next = [...classes];
         next[idx] = { ...next[idx], [field]: value };
         setClasses(next);

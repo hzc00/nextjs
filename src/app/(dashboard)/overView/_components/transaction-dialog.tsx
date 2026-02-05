@@ -65,7 +65,7 @@ export function TransactionDialog({
     const assetOptions = assets || [];
 
     const form = useForm<UpdatePositionFormValues>({
-        resolver: zodResolver(UpdatePositionSchema) as any,
+        resolver: zodResolver(UpdatePositionSchema) as unknown as import("react-hook-form").Resolver<UpdatePositionFormValues>,
         defaultValues: {
             ...updatePositionDefaultValues,
             code: defaultCode || "",
@@ -380,7 +380,7 @@ export function TransactionDialog({
                                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                     Calculation Mode
                                 </label>
-                                <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="w-full">
+                                <Tabs value={mode} onValueChange={(v) => setMode(v as "YIELD" | "COST")} className="w-full">
                                     <TabsList className="grid w-full grid-cols-2">
                                         <TabsTrigger value="YIELD">By Yield</TabsTrigger>
                                         <TabsTrigger value="COST">By Cost</TabsTrigger>

@@ -224,10 +224,10 @@ export const searchAsset = async (query: string) => {
 
         // 1. Yahoo Search (Good for US, General Discovery) using zh-CN still helps for some
         try {
-            const result = await yahooFinance.search(query, { lang: 'zh-CN', region: 'CN' }, { validateResult: false });
+            const result = await yahooFinance.search(query, { lang: 'zh-CN', region: 'CN' }, { validateResult: false }) as unknown as { quotes: YahooQuote[] };
             candidates = result.quotes
-                .filter((q: any) => q.isYahooFinance)
-                .map((q: any) => ({
+                .filter((q) => q.isYahooFinance)
+                .map((q) => ({
                     symbol: q.symbol,
                     name: q.shortname || q.longname || q.symbol,
                     exchange: q.exchange,
@@ -389,13 +389,14 @@ export const upsertAssetClass = async (id: number | undefined, name: string, col
         }
         revalidatePath("/overView");
         return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Upsert Asset Class Error:", error);
         // Handle Unique Constraint
-        if (error.code === 'P2002') {
+        if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2002') {
             return { success: false, error: "Class name already exists" };
         }
-        return { success: false, error: error.message || "Failed to save asset class" };
+        const message = error instanceof Error ? error.message : "Failed to save asset class";
+        return { success: false, error: message };
     }
 };
 
@@ -447,9 +448,10 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
 
         revalidatePath("/overView");
         return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Update Position Error:", error);
-        return { success: false, error: error.message || "Failed to update position" };
+        const message = error instanceof Error ? error.message : "Failed to update position";
+        return { success: false, error: message };
     }
 };
 
@@ -476,8 +478,9 @@ export const deleteAsset = async (assetId: number) => {
 
         revalidatePath("/overView");
         return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Delete Asset Error:", error);
-        return { success: false, error: error.message || "Failed to delete" };
+        const message = error instanceof Error ? error.message : "Failed to delete";
+        return { success: false, error: message };
     }
 };

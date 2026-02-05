@@ -18,6 +18,9 @@ export const AssetSchema = z.object({
     totalCost: z.number().optional(),
     totalProfit: z.number().optional(),
     dailyChange: z.number().optional().default(0), // Mock data had this, keeping for UI
+    assetClassId: z.number().optional().nullable(),
+    assetClassName: z.string().optional(),
+    assetClassColor: z.string().optional(),
 });
 
 export type AssetModel = z.infer<typeof AssetSchema>;

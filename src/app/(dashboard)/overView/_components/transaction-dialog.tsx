@@ -9,7 +9,7 @@ import { Loader2, Search, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateAssetPosition, searchAsset, getAssetQuote, getAssetClasses } from "../_services/market-actions"; // Import updateAssetPosition
 import { toast } from "sonner";
-import { useAssets } from "../_services/use-asset-queries";
+import { useAssets, useAssetClasses, useUpdateAssetPosition } from "../_services/use-asset-queries";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -96,13 +96,8 @@ export function TransactionDialog({
     const costPrice = watch("costPrice");
     const currentPrice = watch("currentPrice");
 
-    const [assetClasses, setAssetClasses] = useState<any[]>([]);
-
-    useEffect(() => {
-        if (open) {
-            getAssetClasses().then(setAssetClasses);
-        }
-    }, [open]);
+    const { data: assetClassesData } = useAssetClasses();
+    const assetClasses = assetClassesData || [];
 
     // Initialize when opening
     useEffect(() => {
@@ -199,30 +194,26 @@ export function TransactionDialog({
 
     const results = calculateResults();
 
-    const onSubmit = async (values: FormValues) => {
+    const updatePositionMutation = useUpdateAssetPosition();
+
+    const onSubmit = (values: FormValues) => {
         if (!values.code) return;
 
         // Final Calculation before submit
         const finalQty = results.qty;
         const finalCost = results.cost; // AvgCost
 
-        toast.loading("Updating position...");
-        const res = await updateAssetPosition(
-            values.code,
-            values.name,
-            finalQty,
-            finalCost,
-            values.assetClassId ? Number(values.assetClassId) : undefined
-        );
-
-        if (res.success) {
-            toast.dismiss();
-            toast.success("Position updated successfully");
-            onOpenChange(false);
-        } else {
-            toast.dismiss();
-            toast.error(res.error || "Failed to update position");
-        }
+        updatePositionMutation.mutate({
+            code: values.code,
+            name: values.name,
+            quantity: finalQty,
+            avgCost: finalCost,
+            assetClassId: values.assetClassId ? Number(values.assetClassId) : undefined
+        }, {
+            onSuccess: () => {
+                onOpenChange(false);
+            }
+        });
     };
 
     return (

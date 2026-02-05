@@ -20,6 +20,9 @@ export const getAssets = async (): Promise<AssetModel[]> => {
 
     const assets = await db.asset.findMany({
         where,
+        include: {
+            assetClass: true
+        },
         orderBy: { quantity: 'desc' }
     });
 
@@ -35,6 +38,8 @@ export const getAssets = async (): Promise<AssetModel[]> => {
             totalCost,
             totalProfit,
             dailyChange: 0,
+            assetClassName: asset.assetClass?.name,
+            assetClassColor: asset.assetClass?.color
         };
     });
 };
@@ -142,34 +147,7 @@ export const tryCreateDailySnapshot = async () => {
 };
 
 
-export const deleteAsset = async (assetId: number) => {
-    try {
-        // Check existence
-        const asset = await db.asset.findUnique({
-            where: { id: assetId }
-        });
-
-        if (!asset) {
-            throw new Error("Asset not found");
-        }
-
-        // Delete specific transactions first
-        await db.transaction.deleteMany({
-            where: { assetId: assetId }
-        });
-
-        // Delete Asset
-        await db.asset.delete({
-            where: { id: assetId }
-        });
-
-        revalidatePath("/overView");
-        return { success: true };
-    } catch (error: any) {
-        console.error("Delete Asset Error:", error);
-        return { success: false, error: error.message || "Failed to delete" };
-    }
-};
+// deleteAsset moved to market-actions.ts
 
 export const getAllocationGap = async () => {
     const session = await auth();

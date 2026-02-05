@@ -446,7 +446,35 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
         return { success: true };
     } catch (error: any) {
         console.error("Update Position Error:", error);
-        // Return actual error message for debugging
         return { success: false, error: error.message || "Failed to update position" };
+    }
+};
+
+export const deleteAsset = async (assetId: number) => {
+    try {
+        // Check existence
+        const asset = await db.asset.findUnique({
+            where: { id: assetId }
+        });
+
+        if (!asset) {
+            throw new Error("Asset not found");
+        }
+
+        // Delete specific transactions first
+        await db.transaction.deleteMany({
+            where: { assetId: assetId }
+        });
+
+        // Delete Asset
+        await db.asset.delete({
+            where: { id: assetId }
+        });
+
+        revalidatePath("/overView");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Delete Asset Error:", error);
+        return { success: false, error: error.message || "Failed to delete" };
     }
 };

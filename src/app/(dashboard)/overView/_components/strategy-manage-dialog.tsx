@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Plus, Save } from "lucide-react";
+import { Trash2, Plus, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getAssetClasses, upsertAssetClass, deleteAssetClass } from "../_services/market-actions";
+import { useAssetClasses, useUpsertAssetClass, useDeleteAssetClass } from "../_services/use-asset-queries";
+import { useState, useEffect } from "react";
 
 interface AssetClass {
     id?: number;
@@ -28,21 +27,18 @@ const COLORS = [
 ];
 
 export function StrategyManageDialog({ open, onOpenChange }: Props) {
+    const { data: serverClasses, isLoading } = useAssetClasses();
+    const upsertMutation = useUpsertAssetClass();
+    const deleteMutation = useDeleteAssetClass();
+
     const [classes, setClasses] = useState<AssetClass[]>([]);
-    const [loading, setLoading] = useState(false);
 
-    const fetchClasses = async () => {
-        setLoading(true);
-        const data = await getAssetClasses();
-        setClasses(data);
-        setLoading(false);
-    };
-
+    // Sync local state with server state when not loading
     useEffect(() => {
-        if (open) {
-            fetchClasses();
+        if (serverClasses) {
+            setClasses(serverClasses);
         }
-    }, [open]);
+    }, [serverClasses]);
 
     const handleAdd = () => {
         setClasses([...classes, {
@@ -52,29 +48,37 @@ export function StrategyManageDialog({ open, onOpenChange }: Props) {
         }]);
     };
 
-    const handleSave = async (idx: number) => {
+    const handleSave = (idx: number) => {
         const item = classes[idx];
         if (!item.name) return toast.error("Name is required");
 
-        const res = await upsertAssetClass(item.id, item.name, item.color, Number(item.targetPercent));
-        if (res.success) {
-            toast.success("Saved");
-            fetchClasses();
-        } else {
-            toast.error(res.error);
+        // Calculate total if we save this change (already in state)
+        // But we need to check if the CURRENT state (which includes this edit) is valid?
+        // Actually, since we update state on change, 'totalTarget' variable (derived from state) 
+        // already reflects the proposed distribution.
+        if (totalTarget > 100) {
+            return toast.error(`Total target (${totalTarget}%) exceeds 100%`);
         }
+
+        upsertMutation.mutate({
+            id: item.id,
+            name: item.name,
+            color: item.color,
+            targetPercent: Number(item.targetPercent)
+        });
     };
 
-    const handleDelete = async (idx: number) => {
+    const handleDelete = (idx: number) => {
         const item = classes[idx];
         if (item.id) {
             if (!confirm("Delete this class?")) return;
-            await deleteAssetClass(item.id);
+            deleteMutation.mutate(item.id);
+        } else {
+            // Just remove from local state if not saved yet
+            const next = [...classes];
+            next.splice(idx, 1);
+            setClasses(next);
         }
-        const next = [...classes];
-        next.splice(idx, 1);
-        setClasses(next);
-        if (item.id) toast.success("Deleted");
     };
 
     const updateField = (idx: number, field: keyof AssetClass, value: any) => {
@@ -99,66 +103,70 @@ export function StrategyManageDialog({ open, onOpenChange }: Props) {
                     <div className="text-sm font-medium">
                         Total Target: <span className={totalTarget === 100 ? "text-green-500" : "text-red-500"}>{totalTarget}%</span>
                     </div>
-                    <Button size="sm" onClick={handleAdd}><Plus className="h-4 w-4 mr-2" /> Add Class</Button>
+                    <Button size="sm" onClick={handleAdd} disabled={totalTarget >= 100}><Plus className="h-4 w-4 mr-2" /> Add Class</Button>
                 </div>
 
                 <div className="max-h-[400px] overflow-y-auto border rounded-md">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Color</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Target %</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {classes.map((c, idx) => (
-                                <TableRow key={idx}>
-                                    <TableCell>
-                                        <div className="flex items-center space-x-2">
-                                            <input
-                                                type="color"
-                                                value={c.color}
-                                                onChange={(e) => updateField(idx, 'color', e.target.value)}
-                                                className="w-8 h-8 rounded cursor-pointer border-0 p-0"
-                                            />
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input
-                                            value={c.name}
-                                            onChange={(e) => updateField(idx, 'name', e.target.value)}
-                                            className="h-8"
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input
-                                            type="number"
-                                            value={c.targetPercent}
-                                            onChange={(e) => updateField(idx, 'targetPercent', e.target.value)}
-                                            className="h-8 w-20"
-                                        />
-                                    </TableCell>
-                                    <TableCell className="text-right space-x-2">
-                                        <Button size="icon" variant="ghost" onClick={() => handleSave(idx)}>
-                                            <Save className="h-4 w-4 text-blue-500" />
-                                        </Button>
-                                        <Button size="icon" variant="ghost" onClick={() => handleDelete(idx)}>
-                                            <Trash2 className="h-4 w-4 text-red-500" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {classes.length === 0 && (
+                    {isLoading ? (
+                        <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                                        No asset classes defined. Add one to start.
-                                    </TableCell>
+                                    <TableHead>Color</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Target %</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {classes.map((c, idx) => (
+                                    <TableRow key={idx}>
+                                        <TableCell>
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="color"
+                                                    value={c.color}
+                                                    onChange={(e) => updateField(idx, 'color', e.target.value)}
+                                                    className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                                                />
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input
+                                                value={c.name}
+                                                onChange={(e) => updateField(idx, 'name', e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input
+                                                type="number"
+                                                value={c.targetPercent}
+                                                onChange={(e) => updateField(idx, 'targetPercent', e.target.value)}
+                                                className="h-8 w-20"
+                                            />
+                                        </TableCell>
+                                        <TableCell className="text-right space-x-2">
+                                            <Button size="icon" variant="ghost" onClick={() => handleSave(idx)} disabled={upsertMutation.isPending}>
+                                                <Save className="h-4 w-4 text-blue-500" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" onClick={() => handleDelete(idx)} disabled={deleteMutation.isPending}>
+                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {classes.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                            No asset classes defined. Add one to start.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

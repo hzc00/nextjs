@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TransactionDialog } from "./transaction-dialog";
-import { useAssets } from "../_services/use-asset-queries";
+import { useAssets, useDeleteAsset } from "../_services/use-asset-queries"; // Updated import
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2 } from "lucide-react";
 import {
@@ -19,14 +19,14 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { deleteAsset } from "../_services/asset-queries";
+// deleteAsset removed
 
 export function OverviewPositionsTable() {
     const [transactionOpen, setTransactionOpen] = useState(false);
     const [selectedCode, setSelectedCode] = useState<string | undefined>(undefined);
     const [deletingId, setDeletingId] = useState<number | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const queryClient = useQueryClient();
+    const deleteMutation = useDeleteAsset();
+    // const queryClient = useQueryClient(); // Not needed locally if mutation handles it
 
     // Use React Query Hook
     const { data: positions, isLoading, error } = useAssets();
@@ -40,24 +40,14 @@ export function OverviewPositionsTable() {
         setDeletingId(id);
     };
 
-    const confirmDelete = async () => {
+    const confirmDelete = () => {
         if (!deletingId) return;
-        setIsDeleting(true);
-        try {
-            const res = await deleteAsset(deletingId);
-            if (res?.success) {
-                toast.success("Asset deleted successfully");
-                // Invalidate query to refetch list
-                queryClient.invalidateQueries({ queryKey: ["assets"] });
-            } else {
-                toast.error("Failed to delete asset");
+
+        deleteMutation.mutate(deletingId, {
+            onSettled: () => {
+                setDeletingId(null);
             }
-        } catch (error) {
-            toast.error("An error occurred");
-        } finally {
-            setIsDeleting(false);
-            setDeletingId(null);
-        }
+        });
     };
 
     if (isLoading) {
@@ -98,6 +88,7 @@ export function OverviewPositionsTable() {
                                 <TableHead>Code</TableHead>
                                 <TableHead>Name</TableHead>
                                 <TableHead>Type</TableHead>
+                                <TableHead>Asset Class</TableHead>
                                 <TableHead className="text-right">Price</TableHead>
                                 <TableHead className="text-right">Avg Cost</TableHead>
                                 <TableHead className="text-right">Market Value</TableHead>
@@ -110,7 +101,7 @@ export function OverviewPositionsTable() {
                         <TableBody>
                             {assetList.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={10} className="text-center h-24 text-muted-foreground">
+                                    <TableCell colSpan={11} className="text-center h-24 text-muted-foreground">
                                         No assets found. Add your first position!
                                     </TableCell>
                                 </TableRow>
@@ -134,6 +125,15 @@ export function OverviewPositionsTable() {
                                                 <Badge variant={position.type === "STOCK" ? "default" : "secondary"}>
                                                     {position.type}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {position.assetClassName ? (
+                                                    <Badge style={{ backgroundColor: position.assetClassColor || '#333', color: '#fff' }}>
+                                                        {position.assetClassName}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">-</span>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right font-mono">
                                                 {position.currentPrice.toLocaleString()}
@@ -212,16 +212,16 @@ export function OverviewPositionsTable() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={(e) => {
                                 e.preventDefault();
                                 confirmDelete();
                             }}
-                            disabled={isDeleting}
+                            disabled={deleteMutation.isPending}
                             className="bg-red-500 hover:bg-red-600"
                         >
-                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+                            {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAssets, getPortfolioSummary, getAssetAllocation, getPortfolioSnapshots, getAllocationGap } from "./asset-queries";
 import { updateAssetPosition, getAssetClasses, upsertAssetClass, deleteAssetClass, deleteAsset } from "./market-actions";
-// import { deleteAsset } from "./asset-queries"; // Removed
 import { toast } from "sonner";
 
 // --- Queries ---

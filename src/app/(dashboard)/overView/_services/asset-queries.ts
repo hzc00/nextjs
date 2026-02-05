@@ -2,7 +2,7 @@
 
 import db from "@/lib/db"; // Assuming this is where the prisma client instance is
 import { auth } from "@/lib/auth";
-import { AssetModel, AssetSchema } from "../_types/investment-schema";
+import { AssetModel } from "../_types/asset.schema";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 

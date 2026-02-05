@@ -12,6 +12,24 @@ const yahooFinance = new YahooFinance();
 // --- Types ---
 type AssetSource = 'TENCENT' | 'YAHOO' | 'UNKNOWN';
 
+interface YahooQuote {
+    symbol: string;
+    regularMarketPrice?: number;
+    shortname?: string;
+    longname?: string;
+    exchange?: string;
+    quoteType?: string;
+    currency?: string;
+    isYahooFinance?: boolean;
+}
+
+interface TencentData {
+    name: string;
+    price: number;
+    currency: string;
+}
+
+
 // --- Helpers ---
 
 /**
@@ -79,31 +97,26 @@ function toTencentCode(code: string): string {
  * Fetch data from Tencent (qt.gtimg.cn)
  * Returns GBK decoded string
  */
-async function fetchFromTencent(codes: string[]): Promise<Map<string, any>> {
+async function fetchFromTencent(codes: string[]): Promise<Map<string, TencentData>> {
     const tencentCodes = codes.map(toTencentCode);
-    // Deduplicate
     const uniqueCodes = Array.from(new Set(tencentCodes));
     if (uniqueCodes.length === 0) return new Map();
 
     const url = `http://qt.gtimg.cn/q=${uniqueCodes.join(',')}`;
-
 
     try {
         const response = await fetch(url, { cache: 'no-store' });
         const buffer = await response.arrayBuffer();
         const text = iconv.decode(Buffer.from(buffer), 'gbk');
 
-        // Parse: v_sh600519="1~贵州茅台~300.00~...";
-        const results = new Map<string, any>();
+        const results = new Map<string, TencentData>();
         const lines = text.split(';');
 
         lines.forEach(line => {
             if (line.trim().length < 10) return;
 
-            // Extract var name: v_sh600519
             const [lhs, rhs] = line.split('=');
             if (!rhs) return;
-            // Remove v_ prefix
             const key = lhs.split('v_')[1];
 
             const valStr = rhs.replace(/"/g, '');
@@ -115,18 +128,12 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, any>> {
             let price = 0;
 
             if (isFund) {
-                // Fund: v_jj000001="Code~Name~NAV~AccumulatedNAV~..."
                 name = values[1];
-                // Index 2 is often 0 or empty for funds. 
-                // Index 5 is commonly Unit NAV (Unit Net Value).
                 price = parseFloat(values[5]);
             } else {
-                // Stock (sh/sz/hk): v_sh600519="1~Name~Code~Price~..."
                 name = values[1];
                 price = parseFloat(values[3]);
             }
-
-
 
             if (name && !isNaN(price)) {
                 results.set(key, { name, price, currency: key.startsWith('hk') ? 'HKD' : 'CNY' });
@@ -141,14 +148,12 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, any>> {
     }
 }
 
-
 export const refreshAllAssetPrices = async () => {
     return executeAction({
         actionFn: async () => {
             const assets = await db.asset.findMany();
             if (assets.length === 0) return;
 
-            // Group by Source
             const tencentQueries: string[] = [];
             const yahooQueries: string[] = [];
             const assetMap = new Map<string, typeof assets[0]>();
@@ -215,7 +220,7 @@ export const searchAsset = async (query: string) => {
     try {
         query = query.trim();
         const source = identifySymbolSource(query);
-        let candidates: any[] = [];
+        let candidates: Array<{ symbol: string; name: string; exchange?: string; type?: string }> = [];
 
         // 1. Yahoo Search (Good for US, General Discovery) using zh-CN still helps for some
         try {
@@ -264,7 +269,7 @@ export const searchAsset = async (query: string) => {
 
                 lines.forEach(line => {
                     const [lhs, rhs] = line.split('=');
-                    if (!rhs || rhs.includes('v_pv_none')) return; // Check for 'none' response
+                    if (!rhs || rhs.includes('v_pv_none')) return;
 
                     const key = lhs.split('v_')[1];
                     const valStr = rhs.replace(/"/g, '');
@@ -279,7 +284,7 @@ export const searchAsset = async (query: string) => {
                     if (key.startsWith('sh')) displaySymbol = `${key.substring(2)}.SS`;
                     else if (key.startsWith('sz')) displaySymbol = `${key.substring(2)}.SZ`;
                     else if (key.startsWith('hk')) displaySymbol = `${key.substring(2)}.HK`;
-                    else if (key.startsWith('jj')) displaySymbol = key.substring(2); // Fund
+                    else if (key.startsWith('jj')) displaySymbol = key.substring(2);
 
                     // Prioritize Tencent: Remove existing Yahoo result if any
                     candidates = candidates.filter(c => c.symbol !== displaySymbol);
@@ -315,7 +320,6 @@ export const getAssetQuote = async (symbol: string) => {
             const tCode = toTencentCode(symbol);
             const data = dataMap.get(tCode);
 
-
             if (data) {
                 return {
                     success: true,
@@ -329,14 +333,13 @@ export const getAssetQuote = async (symbol: string) => {
             }
         }
 
-        // Fallback or Yahoo source
-        const quote = await yahooFinance.quote(symbol, { lang: 'zh-CN', region: 'CN' }, { validateResult: false }) as any;
+        const quote = await yahooFinance.quote(symbol, { lang: 'zh-CN', region: 'CN' }, { validateResult: false }) as unknown as YahooQuote;
         return {
             success: true,
             data: {
-                name: quote.longName || quote.shortName || quote.symbol,
-                price: quote.regularMarketPrice,
-                currency: quote.currency,
+                name: quote.longname || quote.shortname || quote.symbol,
+                price: quote.regularMarketPrice || 0,
+                currency: quote.currency || 'USD',
                 symbol: quote.symbol
             }
         };

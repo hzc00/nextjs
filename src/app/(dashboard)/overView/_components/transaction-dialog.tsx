@@ -4,12 +4,12 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Loader2, Search, Calculator } from "lucide-react";
+import { Loader2, Search, } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { updateAssetPosition, searchAsset, getAssetQuote, getAssetClasses } from "../_services/market-actions"; // Import updateAssetPosition
+import { searchAsset, getAssetQuote } from "../_services/market-actions";
 import { toast } from "sonner";
 import { useAssets, useAssetClasses, useUpdateAssetPosition } from "../_services/use-asset-queries";
+import { UpdatePositionSchema, UpdatePositionFormValues, updatePositionDefaultValues } from "../_types/transaction-form.schema";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -42,19 +42,6 @@ import {
 } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const formSchema = z.object({
-    code: z.string().min(1, "Please select or enter a code"),
-    name: z.string().min(1, "Please enter a name"),
-    currentPrice: z.coerce.number().min(0.000001, "Current Price is required for calculation"),
-    marketValue: z.coerce.number().min(0, "Market Value must be positive"),
-    // Optional fields depending on mode
-    yieldRate: z.coerce.number().optional(),
-    costPrice: z.coerce.number().optional(),
-    assetClassId: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 interface TransactionDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -77,15 +64,11 @@ export function TransactionDialog({
     const { data: assets } = useAssets();
     const assetOptions = assets || [];
 
-    const form = useForm<FormValues>({
-        resolver: zodResolver(formSchema) as any,
+    const form = useForm<UpdatePositionFormValues>({
+        resolver: zodResolver(UpdatePositionSchema) as any,
         defaultValues: {
+            ...updatePositionDefaultValues,
             code: defaultCode || "",
-            name: "",
-            currentPrice: 0,
-            marketValue: 0,
-            yieldRate: 0,
-            costPrice: 0,
         },
     });
 
@@ -121,13 +104,8 @@ export function TransactionDialog({
                 setIsManual(false);
             } else {
                 reset({
+                    ...updatePositionDefaultValues,
                     code: defaultCode || "",
-                    name: "",
-                    currentPrice: 0,
-                    marketValue: 0,
-                    yieldRate: 0,
-                    costPrice: 0,
-                    assetClassId: undefined
                 });
                 if (!defaultCode) setIsManual(false);
             }
@@ -196,7 +174,7 @@ export function TransactionDialog({
 
     const updatePositionMutation = useUpdateAssetPosition();
 
-    const onSubmit = (values: FormValues) => {
+    const onSubmit = (values: UpdatePositionFormValues) => {
         if (!values.code) return;
 
         // Final Calculation before submit

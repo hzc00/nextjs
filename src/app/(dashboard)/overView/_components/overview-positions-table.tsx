@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TransactionDialog } from "./transaction-dialog";
-import { useAssets, useDeleteAsset } from "../_services/use-asset-queries"; // Updated import
+import { useAssets, useDeleteAsset } from "../_services/use-asset-queries";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2 } from "lucide-react";
 import {

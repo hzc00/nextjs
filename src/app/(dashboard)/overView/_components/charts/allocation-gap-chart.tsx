@@ -1,6 +1,6 @@
 "use client";
 
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ReferenceLine, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
 
 interface Props {
     data: {
@@ -11,15 +11,23 @@ interface Props {
     }[];
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface CustomTooltipProps {
+    active?: boolean;
+    payload?: { value: number | string }[];
+    label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-popover border text-popover-foreground p-2 rounded shadow-md text-xs">
-                <p className="font-bold mb-1">{label}</p>
+            <div className="bg-popover text-popover-foreground rounded border p-2 text-xs shadow-md">
+                <p className="mb-1 font-bold">{label}</p>
                 <p className="text-blue-500">Actual: {payload[0].value}%</p>
                 <p className="text-gray-500">Target: {payload[1].value}%</p>
-                <p className={`font-bold mt-1 ${payload[0].value < payload[1].value ? "text-red-500" : "text-green-500"}`}>
-                    Gap: {(payload[0].value - payload[1].value).toFixed(1)}%
+                <p
+                    className={`mt-1 font-bold ${Number(payload[0].value) < Number(payload[1].value) ? "text-red-500" : "text-green-500"}`}
+                >
+                    Gap: {(Number(payload[0].value) - Number(payload[1].value)).toFixed(1)}%
                 </p>
             </div>
         );

@@ -58,7 +58,7 @@ export function OverviewCharts() {
                                     ) : (
                                         <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground text-xs">
                                             <p>No strategy targets set.</p>
-                                            <p>Use "Configure Strategy" to add classes.</p>
+                                            <p>Use &quot;Configure Strategy&quot; to add classes.</p>
                                         </div>
                                     )}
                                 </div>

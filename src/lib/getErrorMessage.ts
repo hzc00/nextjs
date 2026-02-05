@@ -55,7 +55,7 @@ const PRISMA_ERROR_CODES = new Map<string, string>([
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof AuthError) {
-    return "Wrong credentials or the user did not found.";
+    return "Wrong credentials or user not found.";
   } else if (error instanceof ZodError) {
     const message = fromError(error);
     if (message) {

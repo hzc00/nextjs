@@ -36,7 +36,7 @@ import equal from "fast-deep-equal";
 const FoodFiltersDrawer = () => {
   const form = useForm<FoodFiltersSchema>({
     defaultValues: foodFiltersDefaultValues,
-    resolver: zodResolver(foodFiltersSchema),
+    resolver: zodResolver(foodFiltersSchema) as unknown as import("react-hook-form").Resolver<FoodFiltersSchema>,
   });
 
   const {

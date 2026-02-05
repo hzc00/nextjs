@@ -34,7 +34,7 @@ const ServingUnitFormDialog = ({
 }: ServingUnitFormDialogProps) => {
   const form = useForm<ServingUnitSchema>({
     defaultValues: servingUnitDefaultValues,
-    resolver: zodResolver(servingUnitSchema),
+    resolver: zodResolver(servingUnitSchema) as unknown as import("react-hook-form").Resolver<ServingUnitSchema>,
   });
 
   const {

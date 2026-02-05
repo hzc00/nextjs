@@ -37,7 +37,7 @@ import { useServingUnitsStore } from "@/app/(dashboard)/admin/foods-management/s
 const FoodFormDialog = () => {
   const form = useForm<FoodSchema>({
     defaultValues: foodDefaultValues,
-    resolver: zodResolver(foodSchema),
+    resolver: zodResolver(foodSchema) as unknown as import("react-hook-form").Resolver<FoodSchema>,
   });
 
   const foodQuery = useFood();

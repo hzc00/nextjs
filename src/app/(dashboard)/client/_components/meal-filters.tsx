@@ -13,7 +13,7 @@ import { FormProvider, SubmitHandler, useForm } from "react-hook-form";
 const MealFilters = () => {
   const form = useForm<MealFiltersSchema>({
     defaultValues: mealFiltersDefaultValues,
-    resolver: zodResolver(mealFiltersSchema),
+    resolver: zodResolver(mealFiltersSchema) as unknown as import("react-hook-form").Resolver<MealFiltersSchema>,
   });
 
   const { updateMealFilters } = useMealsStore();

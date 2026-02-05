@@ -31,7 +31,7 @@ type CategoryFormDialogProps = {
 const CategoryFormDialog = ({ smallTrigger }: CategoryFormDialogProps) => {
   const form = useForm<CategorySchema>({
     defaultValues: categoryDefaultValues,
-    resolver: zodResolver(categorySchema),
+    resolver: zodResolver(categorySchema) as unknown as import("react-hook-form").Resolver<CategorySchema>,
   });
 
   const {

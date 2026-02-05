@@ -27,18 +27,18 @@ const MealCards = () => {
 
   const deleteMealMutation = useDeleteMeal();
 
-  const calculateTotalCalories = (mealFoods) => {
-    return mealFoods.reduce((total, mealFood) => {
+  const calculateTotalCalories = (mealFoods: any) => {
+    return mealFoods.reduce((total: number, mealFood: any) => {
       const foodCalories = mealFood.food.calories * mealFood.amount || 0;
       return total + foodCalories;
     }, 0);
   };
 
-  const calculateNutritionTotals = (meals) => {
+  const calculateNutritionTotals = (meals: any) => {
     return (
       meals?.reduce(
-        (totals, meal) => {
-          meal.mealFoods.forEach((mealFood) => {
+        (totals: any, meal: any) => {
+          meal.mealFoods.forEach((mealFood: any) => {
             const multiplier = mealFood.amount || 1;
             totals.calories += (mealFood.food.calories || 0) * multiplier;
             totals.protein += (mealFood.food.protein || 0) * multiplier;

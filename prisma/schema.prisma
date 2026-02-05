@@ -135,7 +135,7 @@ enum TransactionType {
 
 model Asset {
   id           Int       @id @default(autoincrement())
-  code         String    @unique
+  code         String
   name         String
   type         AssetType @default(STOCK)
   quantity     Float     @default(0)
@@ -153,6 +153,8 @@ model Asset {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([userId, code])
 }
 
 model AssetClass {

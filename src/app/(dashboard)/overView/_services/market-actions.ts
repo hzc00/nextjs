@@ -422,8 +422,17 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
 
         // Use upsert to handle both create and update atomically
         // This relies on 'code' being @unique in the schema
+        if (!userId) {
+            throw new Error("User not found");
+        }
+
         await db.asset.upsert({
-            where: { code: code },
+            where: {
+                userId_code: {
+                    userId: userId,
+                    code: code
+                }
+            },
             update: {
                 quantity: quantity,
                 avgCost: avgCost,
@@ -438,7 +447,7 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
                 quantity: quantity,
                 avgCost: avgCost,
                 currentPrice: avgCost,
-                userId: userId, // If undefined, it will be null, which is allowed (Int?)
+                userId: userId,
                 assetClassId: assetClassId
             }
         });

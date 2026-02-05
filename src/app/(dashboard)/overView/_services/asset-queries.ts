@@ -8,15 +8,23 @@ import { revalidatePath } from "next/cache";
 
 
 
-export const getAssets = async (): Promise<AssetModel[]> => {
-    const session = await auth();
-    const userId = session?.user?.id ? Number(session.user.id) : undefined;
+export const getAssets = async (userIdOverride?: number): Promise<AssetModel[]> => {
+    let userId = userIdOverride;
+    if (!userId) {
+        const session = await auth();
+        userId = session?.user?.id ? Number(session.user.id) : undefined;
+    }
 
     // If no user, return empty or Admin's data for demo? 
-    // For now let's show all assets if userId is not present (or restrict to admin if we want strict auth)
-    // But since we just seeded Admin, we need to match that.
+    // For now, if no userId is found/provided, we return empty to be safe (or strict auth)
+    // to avoid leaking data if something goes wrong.
+    if (!userId) {
+        // Fallback: If strict mode off, maybe return all? But we have multi-tenant now.
+        // Let's return empty if no user identified.
+        return [];
+    }
 
-    const where: Prisma.AssetWhereInput = userId ? { userId } : {};
+    const where: Prisma.AssetWhereInput = { userId };
 
     const assets = await db.asset.findMany({
         where,
@@ -44,8 +52,8 @@ export const getAssets = async (): Promise<AssetModel[]> => {
     });
 };
 
-export const getPortfolioSummary = async () => {
-    const assets = await getAssets();
+export const getPortfolioSummary = async (userIdOverride?: number) => {
+    const assets = await getAssets(userIdOverride);
 
     let totalNetWorth = 0;
     let totalProfit = 0;
@@ -107,17 +115,14 @@ export const getPortfolioSnapshots = async () => {
     }));
 };
 
-export const tryCreateDailySnapshot = async () => {
-    const session = await auth();
-    const userId = session?.user?.id ? Number(session.user.id) : undefined;
-    if (!userId) return;
-
+// Internal helper for single user snapshot
+const createSnapshotForUser = async (userId: number) => {
     // Check if snapshot exists for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     // Calculate current stats
-    const summary = await getPortfolioSummary();
+    const summary = await getPortfolioSummary(userId);
 
     // Upsert snapshot for today to ensure it reflects latest state
     await db.portfolioSnapshot.upsert({
@@ -140,10 +145,36 @@ export const tryCreateDailySnapshot = async () => {
             totalProfit: summary.totalProfit
         }
     });
+}
+
+export const tryCreateDailySnapshot = async () => {
+    const session = await auth();
+    const userId = session?.user?.id ? Number(session.user.id) : undefined;
+    if (!userId) return;
+
+    await createSnapshotForUser(userId);
 
     // Revalidate needed? Maybe not strictly if Client Component fetches.
     // But good practice if server components use it.
     revalidatePath("/overView");
+};
+
+// --- CRON JOB SUPPORT ---
+export const createScanningSnapshots = async () => {
+    // 1. Get all distinct users who have assets (optimization) or just all users
+    // For simplicity, let's get all Users. 
+    const users = await db.user.findMany({ select: { id: true } });
+
+    console.log(`[Cron] Starting snapshot for ${users.length} users...`);
+
+    for (const user of users) {
+        try {
+            await createSnapshotForUser(user.id);
+        } catch (e) {
+            console.error(`[Cron] Failed to create snapshot for user ${user.id}`, e);
+        }
+    }
+    console.log(`[Cron] Finished snapshots.`);
 };
 
 

@@ -26,10 +26,10 @@ export const useAssetAllocation = () => {
     });
 };
 
-export const usePortfolioSnapshots = () => {
+export const usePortfolioSnapshots = (days: number = 30) => {
     return useQuery({
-        queryKey: ["portfolio-snapshots"],
-        queryFn: () => getPortfolioSnapshots(),
+        queryKey: ["portfolio-snapshots", days],
+        queryFn: () => getPortfolioSnapshots(days),
     });
 };
 

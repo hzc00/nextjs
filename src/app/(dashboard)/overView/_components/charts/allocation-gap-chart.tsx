@@ -51,7 +51,7 @@ export function AllocationGapChart({ data }: Props) {
             >
                 <XAxis type="number" domain={[0, 100]} hide />
                 <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} cursor={false} />
                 <Legend />
                 <Bar name="Actual %" dataKey="actual" fill="#3b82f6" barSize={20} radius={[0, 4, 4, 0]}>
                     {data.map((entry, index) => (

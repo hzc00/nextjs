@@ -4,6 +4,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePortfolioSummary } from "../_services/use-asset-queries";
 import { Loader2, ArrowUp, ArrowDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function OverviewMetricCards() {
   const { data: summary, isLoading } = usePortfolioSummary();
@@ -12,7 +13,7 @@ export function OverviewMetricCards() {
     return (
       <div className="grid gap-4 md:grid-cols-3">
         {[1, 2, 3].map(i => (
-          <Card key={i} className="h-32 flex items-center justify-center">
+          <Card key={i} className="h-32 flex items-center justify-center border-none bg-muted/20">
             <Loader2 className="animate-spin text-muted-foreground" />
           </Card>
         ))}
@@ -20,68 +21,82 @@ export function OverviewMetricCards() {
     );
   }
 
-  const metrics = [
-    {
-      title: "Total Assets",
-      value: summary?.totalNetWorth || 0,
-      currency: "¥",
-      change: 0, // Placeholder
-      isPnl: false,
-    },
-    {
-      title: "Total Profit",
-      value: summary?.totalProfit || 0,
-      currency: "¥",
-      isPnl: true,
-    },
-    {
-      title: "Cost Basis",
-      value: summary?.totalCost || 0,
-      currency: "¥",
-    }
-  ];
+  const formatCurrency = (val: number) =>
+    val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      {metrics.map((metric, index) => {
-        const isPnl = metric.isPnl;
-        const value = metric.value as number;
-        // Logic for color: PnL is Red(+)/Green(-), others are default
-        // In China Red is up/positive, Green is down/negative usually.
-        // Let's assume standard international for now or stick to the user's seeming preference?
-        // Mock data used Red=Positive, Green=Negative logic (implied by previous code).
-        const valueColor = isPnl
-          ? value >= 0
-            ? "text-red-500"
-            : "text-green-500"
-          : "text-foreground";
+      {/* 1. Total Assets / Cost Basis */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">
+            Total Assets / Cost
+          </CardTitle>
+          <span className="text-muted-foreground font-bold">¥</span>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-baseline space-x-1">
+            <span className="text-2xl font-bold">
+              {formatCurrency(summary?.totalNetWorth || 0)}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              / {formatCurrency(summary?.totalCost || 0)}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tight">
+            Valuation vs Principal
+          </p>
+        </CardContent>
+      </Card>
 
-        return (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {metric.title}
-              </CardTitle>
-              {metric.currency && (
-                <span className="text-muted-foreground font-bold">
-                  {metric.currency}
-                </span>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${valueColor}`}>
-                {value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      {/* 2. Total Cumulative Profit */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">
+            Total Profit
+          </CardTitle>
+          <span className="text-muted-foreground font-bold">¥</span>
+        </CardHeader>
+        <CardContent>
+          <div className={cn("text-2xl font-bold", (summary?.totalProfit || 0) >= 0 ? "text-red-500" : "text-green-500")}>
+            {(summary?.totalProfit || 0) > 0 ? "+" : ""}
+            {formatCurrency(summary?.totalProfit || 0)}
+          </div>
+          <div className="flex items-center mt-1">
+            <span className={cn("text-xs font-semibold", (summary?.totalProfit || 0) >= 0 ? "text-red-500" : "text-green-500")}>
+              {summary?.totalCost && summary.totalCost !== 0
+                ? `${((summary.totalProfit / summary.totalCost) * 100).toFixed(2)}%`
+                : "0.00%"}
+            </span>
+            <span className="text-xs text-muted-foreground ml-2">Cumulative</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 3. Daily Profit Summary */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">
+            Daily Profit
+          </CardTitle>
+          <span className="text-muted-foreground font-bold text-xs">Today</span>
+        </CardHeader>
+        <CardContent>
+          <div className={cn("text-2xl font-bold", (summary?.dailyProfit || 0) >= 0 ? "text-red-500" : "text-green-500")}>
+            {(summary?.dailyProfit || 0) > 0 ? "+" : ""}
+            {formatCurrency(summary?.dailyProfit || 0)}
+          </div>
+          <div className="flex items-center mt-1 text-xs">
+            {(summary?.dailyChangePercent || 0) !== 0 && (
+              <div className={cn("flex items-center font-medium", (summary?.dailyChangePercent || 0) > 0 ? "text-red-500" : "text-green-500")}>
+                {(summary?.dailyChangePercent || 0) > 0 ? <ArrowUp className="h-3 w-3 mr-0.5" /> : <ArrowDown className="h-3 w-3 mr-0.5" />}
+                {Math.abs(summary?.dailyChangePercent || 0).toFixed(2)}%
               </div>
-              {metric.change !== undefined && metric.change !== 0 && (
-                <p className="text-muted-foreground mt-1 text-xs flex items-center">
-                  {metric.change > 0 ? <ArrowUp className="h-3 w-3 mr-1 text-red-500" /> : <ArrowDown className="h-3 w-3 mr-1 text-green-500" />}
-                  {Math.abs(metric.change)}% 较昨日
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
+            )}
+            <span className="text-muted-foreground ml-2 uppercase tracking-tighter text-[10px]">Movement</span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

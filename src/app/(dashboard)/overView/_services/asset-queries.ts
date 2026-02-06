@@ -69,25 +69,37 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
     let totalNetWorth = 0;
     let totalProfit = 0;
     let totalCost = 0;
+    let dailyProfit = 0;
 
     assets.forEach(a => {
         const currency = a.currency || "CNY";
         const rate = rates[currency as keyof typeof rates] || 1;
 
-        totalNetWorth += (a.totalValue || 0) * rate;
+        const assetValueCNY = (a.totalValue || 0) * rate;
+        totalNetWorth += assetValueCNY;
         totalCost += (a.totalCost || 0) * rate;
         totalProfit += (a.totalProfit || 0) * rate;
+
+        // Calculate daily profit contribution in CNY
+        // DailyProfit = MV_now - MV_yesterday
+        // MV_now = User's current Market Value (assetValueCNY)
+        // MV_yesterday = MV_now / (1 + Pct/100)
+        // DailyProfit = MV_now * (Pct/100) / (1 + Pct/100)
+        const pct = a.dailyChange || 0;
+        const assetDailyProfit = (assetValueCNY * pct / 100) / (1 + pct / 100);
+        dailyProfit += assetDailyProfit;
     });
 
-    // Simple Calculate Cash Ratio (Assuming 'OTHER' could be cash or just 0 for now)
-    // If we had a CASH type we would use it. For now detailed cash logic is skipped.
-    const cashRatio = 0;
+    const dailyChangePercent = totalNetWorth - dailyProfit !== 0
+        ? (dailyProfit / (totalNetWorth - dailyProfit)) * 100
+        : 0;
 
     return {
         totalNetWorth,
         totalProfit,
         totalCost,
-        dailyProfit: 0,
+        dailyProfit,
+        dailyChangePercent,
         cashRatioString: "0%", // Placeholder
     };
 }
@@ -110,15 +122,20 @@ export const getAssetAllocation = async () => {
     return data;
 }
 
-export const getPortfolioSnapshots = async () => {
+export const getPortfolioSnapshots = async (days: number = 30) => {
     const session = await auth();
     const userId = session?.user?.id ? Number(session.user.id) : undefined;
     if (!userId) return [];
 
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
     const snapshots = await db.portfolioSnapshot.findMany({
-        where: { userId },
+        where: {
+            userId,
+            date: { gte: startDate }
+        },
         orderBy: { date: 'asc' },
-        take: 30 // Last 30 days for chart
     });
 
     return snapshots.map(s => ({

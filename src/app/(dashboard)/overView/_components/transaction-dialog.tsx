@@ -277,7 +277,10 @@ export function TransactionDialog({
                                                         </div>
                                                     </PopoverTrigger>
                                                     <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                                                        <div className="max-h-[200px] overflow-y-auto">
+                                                        <div
+                                                            className="max-h-[300px] overflow-y-auto"
+                                                            onWheel={(e) => e.stopPropagation()}
+                                                        >
                                                             {searchResults.length > 0 ? (
                                                                 searchResults.map((item) => (
                                                                     <div

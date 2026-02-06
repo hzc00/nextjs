@@ -91,7 +91,7 @@ export function OverviewPositionsTable() {
                                 <TableHead className="text-right">Avg Cost</TableHead>
                                 <TableHead className="text-right">Market Value</TableHead>
                                 <TableHead className="text-right">Ratio</TableHead>
-                                <TableHead className="text-right">Daily %</TableHead>
+                                <TableHead className="text-right">Daily Change</TableHead>
                                 <TableHead className="text-right">P&L</TableHead>
                                 <TableHead className="text-right">Action</TableHead>
                             </TableRow>
@@ -156,8 +156,19 @@ export function OverviewPositionsTable() {
                                                 {ratio.toFixed(2)}%
                                             </TableCell>
                                             <TableCell className={`text-right font-bold ${isDailyUp ? "text-red-500" : "text-green-500"}`}>
-                                                {dailyChange > 0 ? "+" : ""}
-                                                {dailyChange.toFixed(2)}%
+                                                <div className="flex flex-col items-end">
+                                                    <span>
+                                                        {dailyChange > 0 ? "+" : ""}
+                                                        {((marketValue * dailyChange / 100) / (1 + dailyChange / 100)).toLocaleString(undefined, {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}
+                                                    </span>
+                                                    <span className="text-xs opacity-80 font-normal">
+                                                        {dailyChange > 0 ? "+" : ""}
+                                                        {dailyChange.toFixed(2)}%
+                                                    </span>
+                                                </div>
                                             </TableCell>
                                             <TableCell className={`text-right font-bold ${isProfit ? "text-red-500" : "text-green-500"}`}>
                                                 <div className="flex flex-col items-end">

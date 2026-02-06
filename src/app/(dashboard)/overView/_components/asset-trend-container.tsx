@@ -12,7 +12,13 @@ export function AssetTrendContainer() {
     const [range, setRange] = useState<"week" | "month" | "year">("week");
     const [showPercentage, setShowPercentage] = useState(false);
 
-    const { data: snapshots } = usePortfolioSnapshots();
+    const periodMap = {
+        week: 7,
+        month: 30,
+        year: 365,
+    };
+
+    const { data: snapshots } = usePortfolioSnapshots(periodMap[range]);
 
     // Transform snapshots to chart data
     // If no data, use empty array

@@ -86,10 +86,11 @@ function toTencentCode(code: string): string {
 
     // 6 Digits (Guessing)
     if (/^\d{6}$/.test(clean)) {
-        // Ambiguity: 000001 can be sz000001 (PingAn) or jj000001 (Huaxia Fund)
-        // Usage: For simple "price refresh", if we don't store suffix, we might guess wrong.
-        // But usually frontend sends correct suffix if user selected from search.
+        // ...
         // If user manually entered 000001, we default to Fund (jj) per user request about "OTC Funds".
+        // NEW: If starts with 5 (SH ETF) or 1 (SZ ETF), use exchange prefix for real-time price.
+        if (clean.startsWith('5')) return `sh${clean}`;
+        if (clean.startsWith('1')) return `sz${clean}`;
         return `jj${clean}`;
     }
 
@@ -133,8 +134,9 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, TencentDat
 
             if (isFund) {
                 name = values[1];
-                price = parseFloat(values[3]);
-                const changePct = parseFloat(values[6]); // Trying index 6
+                // For funds, index 5 is Unit Net Value, index 7 is daily change %
+                price = parseFloat(values[5]);
+                const changePct = parseFloat(values[7]);
                 if (!isNaN(changePct)) dailyChange = changePct;
             } else {
                 name = values[1];
@@ -285,8 +287,8 @@ export const searchAsset = async (query: string) => {
             if (query.includes('.')) {
                 potentialCodes.push(toTencentCode(query));
             } else {
-                if (query.startsWith('6')) potentialCodes.push(`sh${query}`);
-                if (query.startsWith('0') || query.startsWith('3')) potentialCodes.push(`sz${query}`);
+                if (query.startsWith('6') || query.startsWith('5')) potentialCodes.push(`sh${query}`);
+                if (query.startsWith('0') || query.startsWith('3') || query.startsWith('1')) potentialCodes.push(`sz${query}`);
                 if (query.length === 5) potentialCodes.push(`hk${query}`);
             }
 

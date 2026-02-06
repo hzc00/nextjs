@@ -42,8 +42,7 @@ export const getAssets = async (userIdOverride?: number): Promise<AssetModel[]> 
         const totalCost = asset.quantity * asset.avgCost;
         const totalProfit = totalValue - totalCost;
 
-        // @ts-ignore
-        const currency = (asset as any).currency || "CNY";
+        const currency = asset.currency || "CNY";
         const rate = rates[currency as keyof typeof rates] || 1;
         const valueInCNY = totalValue * rate;
 
@@ -53,7 +52,7 @@ export const getAssets = async (userIdOverride?: number): Promise<AssetModel[]> 
             totalValue,
             totalCost,
             totalProfit,
-            dailyChange: (asset as any).dailyChange || 0,
+            dailyChange: asset.dailyChange || 0,
             currency,
             valueInCNY,
             assetClassName: asset.assetClass?.name,
@@ -72,8 +71,7 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
     let totalCost = 0;
 
     assets.forEach(a => {
-        // @ts-ignore - Prisma types might not show currency yet if not regenerated, but DB has it
-        const currency = (a as any).currency || "CNY";
+        const currency = a.currency || "CNY";
         const rate = rates[currency as keyof typeof rates] || 1;
 
         totalNetWorth += (a.totalValue || 0) * rate;

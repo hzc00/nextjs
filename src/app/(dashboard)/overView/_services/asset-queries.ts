@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { AssetModel } from "../_types/asset.schema";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { getExchangeRates } from "./market-actions";
 
 
 
@@ -34,10 +35,17 @@ export const getAssets = async (userIdOverride?: number): Promise<AssetModel[]> 
         orderBy: { quantity: 'desc' }
     });
 
+    const rates = await getExchangeRates();
+
     return assets.map(asset => {
         const totalValue = asset.quantity * asset.currentPrice;
         const totalCost = asset.quantity * asset.avgCost;
         const totalProfit = totalValue - totalCost;
+
+        // @ts-ignore
+        const currency = (asset as any).currency || "CNY";
+        const rate = rates[currency as keyof typeof rates] || 1;
+        const valueInCNY = totalValue * rate;
 
         return {
             ...asset,
@@ -45,7 +53,9 @@ export const getAssets = async (userIdOverride?: number): Promise<AssetModel[]> 
             totalValue,
             totalCost,
             totalProfit,
-            dailyChange: 0,
+            dailyChange: (asset as any).dailyChange || 0,
+            currency,
+            valueInCNY,
             assetClassName: asset.assetClass?.name,
             assetClassColor: asset.assetClass?.color
         };
@@ -55,14 +65,20 @@ export const getAssets = async (userIdOverride?: number): Promise<AssetModel[]> 
 export const getPortfolioSummary = async (userIdOverride?: number) => {
     const assets = await getAssets(userIdOverride);
 
+    const rates = await getExchangeRates();
+
     let totalNetWorth = 0;
     let totalProfit = 0;
     let totalCost = 0;
 
     assets.forEach(a => {
-        totalNetWorth += (a.totalValue || 0);
-        totalCost += (a.totalCost || 0);
-        totalProfit += (a.totalProfit || 0);
+        // @ts-ignore - Prisma types might not show currency yet if not regenerated, but DB has it
+        const currency = (a as any).currency || "CNY";
+        const rate = rates[currency as keyof typeof rates] || 1;
+
+        totalNetWorth += (a.totalValue || 0) * rate;
+        totalCost += (a.totalCost || 0) * rate;
+        totalProfit += (a.totalProfit || 0) * rate;
     });
 
     // Simple Calculate Cash Ratio (Assuming 'OTHER' could be cash or just 0 for now)

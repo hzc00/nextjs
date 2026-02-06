@@ -27,7 +27,10 @@ interface TencentData {
     name: string;
     price: number;
     currency: string;
+    dailyChange: number;
 }
+
+
 
 
 // --- Helpers ---
@@ -126,17 +129,22 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, TencentDat
 
             let name = '';
             let price = 0;
+            let dailyChange = 0;
 
             if (isFund) {
                 name = values[1];
-                price = parseFloat(values[5]);
+                price = parseFloat(values[3]);
+                const changePct = parseFloat(values[6]); // Trying index 6
+                if (!isNaN(changePct)) dailyChange = changePct;
             } else {
                 name = values[1];
                 price = parseFloat(values[3]);
+                const changePct = parseFloat(values[32]); // Index 32
+                if (!isNaN(changePct)) dailyChange = changePct;
             }
 
             if (name && !isNaN(price)) {
-                results.set(key, { name, price, currency: key.startsWith('hk') ? 'HKD' : 'CNY' });
+                results.set(key, { name, price, currency: key.startsWith('hk') ? 'HKD' : 'CNY', dailyChange });
             }
         });
 
@@ -145,6 +153,25 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, TencentDat
     } catch (error) {
         console.error("Tencent Fetch Error:", error);
         return new Map();
+    }
+}
+
+/**
+ * Fetch Exchange Rates (CNY based)
+ */
+export async function getExchangeRates() {
+    try {
+        const rates = { "CNY": 1, "USD": 7.2, "HKD": 0.92 }; // Fallback defaults
+        const results = await yahooFinance.quote(['USDCNY=X', 'HKDCNY=X'], {}, { validateResult: false });
+
+        for (const res of results) {
+            if (res.symbol === 'USDCNY=X' && res.regularMarketPrice) rates["USD"] = res.regularMarketPrice;
+            if (res.symbol === 'HKDCNY=X' && res.regularMarketPrice) rates["HKD"] = res.regularMarketPrice;
+        }
+        return rates;
+    } catch (e) {
+        console.error("Failed to fetch exchange rates, using defaults", e);
+        return { "CNY": 1, "USD": 7.2, "HKD": 0.92 };
     }
 }
 
@@ -164,10 +191,7 @@ export const refreshAllAssetPrices = async () => {
 
                 if (source === 'TENCENT') {
                     tencentQueries.push(asset.code);
-                } else if (source === 'YAHOO') {
-                    yahooQueries.push(asset.code);
                 } else {
-                    // Unknown - default to Yahoo just in case
                     yahooQueries.push(asset.code);
                 }
             }
@@ -184,7 +208,11 @@ export const refreshAllAssetPrices = async () => {
                         if (asset) {
                             await db.asset.update({
                                 where: { id: asset.id },
-                                data: { currentPrice: data.price }
+                                data: {
+                                    currentPrice: data.price,
+                                    currency: data.currency, // 'HKD' or 'CNY'
+                                    dailyChange: data.dailyChange
+                                }
                             });
                         }
                     }
@@ -195,14 +223,20 @@ export const refreshAllAssetPrices = async () => {
             if (yahooQueries.length > 0) {
                 try {
                     const quotes = await yahooFinance.quote(yahooQueries, {}, { validateResult: false });
-                    for (const quote of quotes) {
+                    const quoteArray = Array.isArray(quotes) ? quotes : [quotes]; // Handle single result
+
+                    for (const quote of quoteArray) {
                         const symbol = quote.symbol;
                         const price = quote.regularMarketPrice;
                         const asset = assetMap.get(symbol);
                         if (asset && price) {
                             await db.asset.update({
                                 where: { id: asset.id },
-                                data: { currentPrice: price }
+                                data: {
+                                    currentPrice: price,
+                                    currency: quote.currency || 'USD',
+                                    dailyChange: quote.regularMarketChangePercent || 0
+                                }
                             });
                         }
                     }
@@ -415,7 +449,7 @@ export const deleteAssetClass = async (id: number) => {
     }
 };
 
-export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number) => {
+export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number, currency?: string) => {
     try {
         const session = await auth();
         const userId = session?.user?.id ? Number(session.user.id) : undefined;
@@ -449,7 +483,8 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
                 ...(name ? { name } : {}),
                 assetClassId: assetClassId,
                 // If currentPrice provided, update it too (e.g. manual override)
-                ...(currentPrice !== undefined ? { currentPrice } : {})
+                ...(currentPrice !== undefined ? { currentPrice } : {}),
+                ...(currency ? { currency } : {})
             },
             create: {
                 code: code,
@@ -459,7 +494,8 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
                 avgCost: avgCost,
                 currentPrice: currentPrice !== undefined ? currentPrice : avgCost,
                 userId: userId,
-                assetClassId: assetClassId
+                assetClassId: assetClassId,
+                currency: currency || "CNY"
             }
         });
 

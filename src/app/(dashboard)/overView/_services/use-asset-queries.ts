@@ -53,8 +53,8 @@ export function useUpdateAssetPosition() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: { code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number }) => {
-            const res = await updateAssetPosition(data.code, data.name, data.quantity, data.avgCost, data.assetClassId, data.currentPrice);
+        mutationFn: async (data: { code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number, currency?: string }) => {
+            const res = await updateAssetPosition(data.code, data.name, data.quantity, data.avgCost, data.assetClassId, data.currentPrice, data.currency);
             if (!res.success) throw new Error(res.error);
             return res;
         },
@@ -88,6 +88,7 @@ export function useDeleteAsset() {
             queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] });
             queryClient.invalidateQueries({ queryKey: ["asset-allocation"] });
             queryClient.invalidateQueries({ queryKey: ["allocationGap"] });
+            queryClient.invalidateQueries({ queryKey: ["portfolio-snapshots"] });
         },
         onError: (error: Error) => {
             toast.error(error.message || "Failed to delete asset");

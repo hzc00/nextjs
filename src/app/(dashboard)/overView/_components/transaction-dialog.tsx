@@ -107,7 +107,8 @@ export function TransactionDialog({
                         ? parseFloat((((known.totalValue - known.totalCost) / known.totalCost) * 100).toFixed(2))
                         : 0,
                     costPrice: known.avgCost || 0,
-                    assetClassId: known.assetClassId ? String(known.assetClassId) : undefined
+                    assetClassId: known.assetClassId ? String(known.assetClassId) : undefined,
+                    currency: known.currency || "CNY",
                 });
                 setIsManual(false);
             } else {
@@ -195,7 +196,8 @@ export function TransactionDialog({
             quantity: finalQty,
             avgCost: finalCost,
             assetClassId: values.assetClassId ? Number(values.assetClassId) : undefined,
-            currentPrice: Number(values.currentPrice)
+            currentPrice: Number(values.currentPrice),
+            currency: values.currency
         }, {
             onSuccess: () => {
                 onOpenChange(false);
@@ -320,6 +322,7 @@ export function TransactionDialog({
                                             </FormItem>
                                         )}
                                     />
+
                                 </div>
                             )}
 
@@ -340,34 +343,58 @@ export function TransactionDialog({
                                 )}
                             />
 
-                            <FormField
-                                control={control}
-                                name="assetClassId"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Strategy Tag</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="None" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="0">None</SelectItem>
-                                                {assetClasses.map((c) => (
-                                                    <SelectItem key={c.id} value={String(c.id)}>
-                                                        <span className="flex items-center">
-                                                            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: c.color }}></div>
-                                                            {c.name}
-                                                        </span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </FormItem>
-                                )}
-                            />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={control}
+                                    name="assetClassId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Strategy Tag</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="None" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="0">None</SelectItem>
+                                                    {assetClasses.map((c) => (
+                                                        <SelectItem key={c.id} value={String(c.id)}>
+                                                            <span className="flex items-center">
+                                                                <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: c.color }}></div>
+                                                                {c.name}
+                                                            </span>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={control}
+                                    name="currency"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Currency</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value || "CNY"}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="CNY" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="CNY">CNY (人民币)</SelectItem>
+                                                    <SelectItem value="HKD">HKD (港币)</SelectItem>
+                                                    <SelectItem value="USD">USD (美元)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
                         </div>
+
 
                         {/* 2. Core Inputs: Market Value & Mode */}
                         <div className="grid grid-cols-2 gap-4">

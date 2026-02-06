@@ -10,6 +10,7 @@ export const UpdatePositionSchema = z.object({
     yieldRate: z.coerce.number().optional().default(0),
     costPrice: z.coerce.number().optional().default(0),
     assetClassId: z.string().optional(),
+    currency: z.string().optional().default("CNY"),
 });
 
 export type UpdatePositionFormValues = z.infer<typeof UpdatePositionSchema>;
@@ -22,4 +23,5 @@ export const updatePositionDefaultValues: UpdatePositionFormValues = {
     yieldRate: 0,
     costPrice: 0,
     assetClassId: undefined,
+    currency: "CNY",
 };

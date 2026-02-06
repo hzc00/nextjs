@@ -10,7 +10,9 @@ export const AssetSchema = z.object({
     quantity: z.number(),
     avgCost: z.number(),
     currentPrice: z.number(),
+    currency: z.string().optional().default("CNY"),
     // Derived fields for UI
+    valueInCNY: z.number().optional(),
     totalValue: z.number().optional(),
     totalCost: z.number().optional(),
     totalProfit: z.number().optional(),

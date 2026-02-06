@@ -111,6 +111,9 @@ export function OverviewPositionsTable() {
                                     const marketValue = position.totalValue || 0;
                                     const ratio = totalPortfolioValue > 0 ? (marketValue / totalPortfolioValue) * 100 : 0;
 
+                                    const currencySymbol = position.currency === "USD" ? "$" : position.currency === "HKD" ? "HK$" : "¥";
+                                    const showConverted = position.currency !== "CNY" && position.valueInCNY;
+
                                     return (
                                         <TableRow key={position.id}>
                                             <TableCell className="font-mono text-muted-foreground">
@@ -134,20 +137,27 @@ export function OverviewPositionsTable() {
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right font-mono">
-                                                {position.currentPrice.toLocaleString()}
+                                                {currencySymbol}{position.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </TableCell>
                                             <TableCell className="text-right font-mono text-muted-foreground">
-                                                {position.avgCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                {currencySymbol}{position.avgCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </TableCell>
                                             <TableCell className="text-right font-mono font-medium">
-                                                {marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                <div>
+                                                    {currencySymbol}{marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </div>
+                                                {showConverted && (
+                                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                                        ≈ ¥{position.valueInCNY?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right font-mono text-muted-foreground">
                                                 {ratio.toFixed(2)}%
                                             </TableCell>
                                             <TableCell className={`text-right font-bold ${isDailyUp ? "text-red-500" : "text-green-500"}`}>
                                                 {dailyChange > 0 ? "+" : ""}
-                                                {dailyChange}%
+                                                {dailyChange.toFixed(2)}%
                                             </TableCell>
                                             <TableCell className={`text-right font-bold ${isProfit ? "text-red-500" : "text-green-500"}`}>
                                                 <div className="flex flex-col items-end">

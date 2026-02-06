@@ -141,6 +141,8 @@ model Asset {
   quantity     Float     @default(0)
   avgCost      Float     @default(0)
   currentPrice Float     @default(0)
+  currency     String    @default("CNY")
+  dailyChange  Float     @default(0)
 
   transactions Transaction[]
 

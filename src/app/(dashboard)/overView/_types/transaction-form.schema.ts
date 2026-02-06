@@ -11,6 +11,20 @@ export const UpdatePositionSchema = z.object({
     costPrice: z.coerce.number().optional().default(0),
     assetClassId: z.string().optional(),
     currency: z.string().optional().default("CNY"),
+    mode: z.enum(["YIELD", "COST"]).default("YIELD"),
+    type: z.enum(["STOCK", "FUND", "BOND", "CRYPTO", "OTHER"]).optional(),
+}).superRefine((val, ctx) => {
+    if (val.mode === "COST") {
+        if (!val.costPrice || val.costPrice <= 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Avg Cost must be > 0 when calculating by Cost",
+                path: ["costPrice"],
+            });
+        }
+    }
+    // You can add YIELD validation if needed, e.g. strictly requiring non-zero input?
+    // Currently relying on defaults/optional.
 });
 
 export type UpdatePositionFormValues = z.infer<typeof UpdatePositionSchema>;
@@ -24,4 +38,6 @@ export const updatePositionDefaultValues: UpdatePositionFormValues = {
     costPrice: 0,
     assetClassId: undefined,
     currency: "CNY",
+    mode: "YIELD",
+    type: undefined,
 };

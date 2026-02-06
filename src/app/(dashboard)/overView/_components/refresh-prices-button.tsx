@@ -1,26 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import { refreshAllAssetPrices } from "../_services/market-actions";
-import { toast } from "sonner";
+import { useRefreshPrices } from "../_services/use-asset-queries";
 import { cn } from "@/lib/utils";
 
 export function RefreshPricesButton() {
-    const [loading, setLoading] = useState(false);
+    const refreshMutation = useRefreshPrices();
+    const loading = refreshMutation.isPending;
 
-    const handleRefresh = async () => {
-        setLoading(true);
-        try {
-            await refreshAllAssetPrices();
-            toast.success("Prices updated successfully");
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to update prices");
-        } finally {
-            setLoading(false);
-        }
+    const handleRefresh = () => {
+        refreshMutation.mutate();
     };
 
     return (

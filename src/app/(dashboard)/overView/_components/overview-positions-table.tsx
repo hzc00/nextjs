@@ -70,6 +70,14 @@ export function OverviewPositionsTable() {
         );
     }
 
+    // Helper to determine decimals
+    const getDecimalPlaces = (position: any) => {
+        if (position.type === 'FUND') return 4;
+        if (position.name.toUpperCase().includes('ETF')) return 3;
+        // Check for small values? Or just default to 2.
+        return 2;
+    };
+
     const assetList = positions || [];
     const totalPortfolioValue = assetList.reduce((sum, p) => sum + (p.totalValue || 0), 0);
 
@@ -115,6 +123,7 @@ export function OverviewPositionsTable() {
 
                                         const currencySymbol = position.currency === "USD" ? "$" : position.currency === "HKD" ? "HK$" : "¥";
                                         const showConverted = position.currency !== "CNY" && position.valueInCNY;
+                                        const decimals = getDecimalPlaces(position);
 
                                         return (
                                             <TableRow key={position.id}>
@@ -139,10 +148,10 @@ export function OverviewPositionsTable() {
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono whitespace-nowrap">
-                                                    {currencySymbol}{position.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    {currencySymbol}{position.currentPrice.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono text-muted-foreground whitespace-nowrap">
-                                                    {currencySymbol}{position.avgCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    {currencySymbol}{position.avgCost.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono font-medium whitespace-nowrap">
                                                     <div>
@@ -157,7 +166,7 @@ export function OverviewPositionsTable() {
                                                 <TableCell className="text-right font-mono text-muted-foreground">
                                                     {ratio.toFixed(2)}%
                                                 </TableCell>
-                                                <TableCell className={`text-right font-bold ${isDailyUp ? "text-red-500" : "text-green-500"} whitespace-nowrap`}>
+                                                <TableCell className={`text-right font-bold ${isDailyUp ? "text-red-500" : "text-green-500"} whitespace-nowrap float-right`}>
                                                     <div className="flex flex-col items-end">
                                                         <span>
                                                             {dailyChange > 0 ? "+" : ""}
@@ -230,7 +239,7 @@ export function OverviewPositionsTable() {
                                 const ratio = totalPortfolioValue > 0 ? (marketValue / totalPortfolioValue) * 100 : 0;
 
                                 const currencySymbol = position.currency === "USD" ? "$" : position.currency === "HKD" ? "HK$" : "¥";
-                                // const showConverted = position.currency !== "CNY" && position.valueInCNY;
+                                const decimals = getDecimalPlaces(position);
 
                                 return (
                                     <div key={position.id} className="border rounded-lg p-4 space-y-3 bg-card text-card-foreground shadow-sm">
@@ -268,7 +277,7 @@ export function OverviewPositionsTable() {
                                             <div>
                                                 <div className="text-xs text-muted-foreground">Price</div>
                                                 <div className="font-mono text-sm">
-                                                    {currencySymbol}{position.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    {currencySymbol}{position.currentPrice.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -290,7 +299,7 @@ export function OverviewPositionsTable() {
                                             <div>
                                                 <div className="text-xs text-muted-foreground">Avg Cost</div>
                                                 <div className="font-mono text-sm">
-                                                    {currencySymbol}{position.avgCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    {currencySymbol}{position.avgCost.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
                                                 </div>
                                             </div>
                                             <div className="text-right">

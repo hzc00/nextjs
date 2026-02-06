@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAssets, getPortfolioSummary, getAssetAllocation, getPortfolioSnapshots, getAllocationGap } from "./asset-queries";
-import { updateAssetPosition, getAssetClasses, upsertAssetClass, deleteAssetClass, deleteAsset } from "./market-actions";
+import { updateAssetPosition, getAssetClasses, upsertAssetClass, deleteAssetClass, deleteAsset, refreshAllAssetPrices } from "./market-actions";
 import { toast } from "sonner";
 
 // --- Queries ---
@@ -53,8 +53,8 @@ export function useUpdateAssetPosition() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: { code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number, currency?: string }) => {
-            const res = await updateAssetPosition(data.code, data.name, data.quantity, data.avgCost, data.assetClassId, data.currentPrice, data.currency);
+        mutationFn: async (data: { code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number, currency?: string, type?: "STOCK" | "FUND" | "BOND" | "CRYPTO" | "OTHER" }) => {
+            const res = await updateAssetPosition(data.code, data.name, data.quantity, data.avgCost, data.assetClassId, data.currentPrice, data.currency, data.type);
             if (!res.success) throw new Error(res.error);
             return res;
         },
@@ -130,6 +130,28 @@ export function useDeleteAssetClass() {
         },
         onError: (error: Error) => {
             toast.error(error.message || "Failed to delete class");
+        }
+    });
+}
+
+export function useRefreshPrices() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async () => {
+            await refreshAllAssetPrices();
+        },
+        onSuccess: () => {
+            toast.success("Prices updated successfully");
+            // Invalidate all portfolio related data
+            queryClient.invalidateQueries({ queryKey: ["assets"] });
+            queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] });
+            queryClient.invalidateQueries({ queryKey: ["asset-allocation"] });
+            queryClient.invalidateQueries({ queryKey: ["allocationGap"] });
+            queryClient.invalidateQueries({ queryKey: ["portfolio-snapshots"] });
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || "Failed to update prices");
         }
     });
 }

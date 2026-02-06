@@ -67,7 +67,8 @@ export function TransactionDialog({
     const [searchResults, setSearchResults] = React.useState<SearchResult[]>([]);
 
     // Mode: "YIELD" (Input Yield -> Calc Cost) | "COST" (Input Cost -> Calc Yield)
-    const [mode, setMode] = useState<"YIELD" | "COST">("YIELD");
+    // Mode: "YIELD" (Input Yield -> Calc Cost) | "COST" (Input Cost -> Calc Yield)
+
 
     const { data: assets } = useAssets();
     const assetOptions = React.useMemo(() => assets || [], [assets]);
@@ -81,6 +82,7 @@ export function TransactionDialog({
     });
 
     const { watch, setValue, reset, control } = form;
+    const mode = watch("mode");
     const currentCode = watch("code");
     const marketValue = watch("marketValue");
     const yieldRate = watch("yieldRate");
@@ -90,12 +92,21 @@ export function TransactionDialog({
     const { data: assetClassesData } = useAssetClasses();
     const assetClasses = assetClassesData || [];
 
+    // Helper to determine decimals
+    const getDecimalPlaces = (code: string, name: string, type?: string) => {
+        // Simple heuristic matching the table logic
+        if (type === 'FUND') return 4;
+        if (name && name.toUpperCase().includes('ETF')) return 3;
+        return 2;
+    };
+
     // Initialize when opening
     useEffect(() => {
         if (open) {
             setSearchResults([]); // Clear search results
             const known = assetOptions.find((p) => p.code === defaultCode);
             if (known) {
+                const decimals = getDecimalPlaces(known.code, known.name, known.type);
                 reset({
                     code: known.code,
                     name: known.name,
@@ -106,9 +117,12 @@ export function TransactionDialog({
                     yieldRate: known.totalCost && known.totalValue
                         ? parseFloat((((known.totalValue - known.totalCost) / known.totalCost) * 100).toFixed(2))
                         : 0,
-                    costPrice: known.avgCost || 0,
+                    costPrice: known.avgCost ? parseFloat(known.avgCost.toFixed(decimals)) : 0,
+
                     assetClassId: known.assetClassId ? String(known.assetClassId) : undefined,
                     currency: known.currency || "CNY",
+                    mode: "YIELD",
+                    type: known.type as any,
                 });
                 setIsManual(false);
             } else {
@@ -132,6 +146,7 @@ export function TransactionDialog({
             setIsManual(false);
             const selected = assetOptions.find((p) => p.code === value);
             if (selected) {
+                const decimals = getDecimalPlaces(selected.code, selected.name, selected.type);
                 setValue("code", value);
                 setValue("name", selected.name);
                 setValue("currentPrice", selected.currentPrice);
@@ -142,16 +157,22 @@ export function TransactionDialog({
                     ? ((selected.totalValue - selected.totalCost) / selected.totalCost) * 100
                     : 0;
                 setValue("yieldRate", parseFloat(y.toFixed(2)));
-                setValue("costPrice", selected.avgCost);
+                setValue("costPrice", selected.avgCost ? parseFloat(selected.avgCost.toFixed(decimals)) : 0);
+                setValue("type", selected.type as any);
             }
         }
     };
 
     // Derived Values for Display
     const calculateResults = () => {
-        if (!currentPrice || currentPrice <= 0) return { qty: 0, cost: 0, derivedYield: 0 };
+        const cp = Number(currentPrice);
+        const mv = Number(marketValue);
+        const yr = Number(yieldRate);
+        const costP = Number(costPrice);
 
-        const qty = marketValue / currentPrice;
+        if (!cp || cp <= 0) return { qty: 0, cost: 0, derivedYield: 0 };
+
+        const qty = mv / cp;
         let derivedCost = 0;
         let derivedYield = 0;
 
@@ -159,16 +180,16 @@ export function TransactionDialog({
             // Given Yield, Calc Cost
             // MV = Cost * (1 + Yield%)
             // Cost = MV / (1 + Yield%)
-            const y = (yieldRate || 0) / 100;
-            const totalCost = marketValue / (1 + y);
+            const y = (yr || 0) / 100;
+            const totalCost = mv / (1 + y);
             derivedCost = totalCost / qty;
-            derivedYield = yieldRate || 0;
+            derivedYield = yr || 0;
         } else {
             // Given Cost, Calc Yield
-            derivedCost = costPrice || 0;
+            derivedCost = costP || 0;
             const totalCost = derivedCost * qty;
             if (totalCost !== 0) {
-                derivedYield = ((marketValue - totalCost) / totalCost) * 100;
+                derivedYield = ((mv - totalCost) / totalCost) * 100;
             }
         }
 
@@ -187,8 +208,8 @@ export function TransactionDialog({
         if (!values.code) return;
 
         // Final Calculation before submit
-        const finalQty = results.qty;
-        const finalCost = results.cost; // AvgCost
+        const finalQty = Number(results.qty);
+        const finalCost = Number(results.cost); // AvgCost
 
         updatePositionMutation.mutate({
             code: values.code,
@@ -197,7 +218,9 @@ export function TransactionDialog({
             avgCost: finalCost,
             assetClassId: values.assetClassId ? Number(values.assetClassId) : undefined,
             currentPrice: Number(values.currentPrice),
-            currency: values.currency
+            currency: values.currency,
+            type: values.type,
+        }, {
         }, {
             onSuccess: () => {
                 onOpenChange(false);
@@ -289,6 +312,13 @@ export function TransactionDialog({
                                                                         onClick={async () => {
                                                                             setValue("code", item.symbol);
                                                                             if (item.name) setValue("name", item.name);
+
+                                                                            // Map Search Result Type to Enum
+                                                                            let t = "STOCK";
+                                                                            if (item.type === "FUND") t = "FUND";
+                                                                            // Default others to STOCK for now or map accordingly
+                                                                            setValue("type", t as any);
+
                                                                             setSearchResults([]); // Close list
 
                                                                             const quote = await getAssetQuote(item.symbol);
@@ -339,7 +369,7 @@ export function TransactionDialog({
                                             <span className="text-xs text-muted-foreground font-normal">Required for Qty calc</span>
                                         </FormLabel>
                                         <FormControl>
-                                            <Input type="number" step="0.01" {...field} />
+                                            <Input type="number" step="0.0001" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -419,7 +449,7 @@ export function TransactionDialog({
                                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                     Calculation Mode
                                 </label>
-                                <Tabs value={mode} onValueChange={(v) => setMode(v as "YIELD" | "COST")} className="w-full">
+                                <Tabs value={mode} onValueChange={(v) => setValue("mode", v as "YIELD" | "COST")} className="w-full">
                                     <TabsList className="grid w-full grid-cols-2">
                                         <TabsTrigger value="YIELD">By Yield</TabsTrigger>
                                         <TabsTrigger value="COST">By Cost</TabsTrigger>
@@ -455,7 +485,7 @@ export function TransactionDialog({
                                         <FormItem>
                                             <FormLabel>Average Cost Price</FormLabel>
                                             <FormControl>
-                                                <Input type="number" step="0.01" {...field} />
+                                                <Input type="number" step="0.0001" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>

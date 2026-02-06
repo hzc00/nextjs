@@ -451,7 +451,7 @@ export const deleteAssetClass = async (id: number) => {
     }
 };
 
-export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number, currency?: string) => {
+export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number, currency?: string, type?: "STOCK" | "FUND" | "BOND" | "CRYPTO" | "OTHER") => {
     try {
         const session = await auth();
         const userId = session?.user?.id ? Number(session.user.id) : undefined;
@@ -486,12 +486,13 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
                 assetClassId: assetClassId,
                 // If currentPrice provided, update it too (e.g. manual override)
                 ...(currentPrice !== undefined ? { currentPrice } : {}),
-                ...(currency ? { currency } : {})
+                ...(currency ? { currency } : {}),
+                ...(type ? { type } : {}) // Update type if provided
             },
             create: {
                 code: code,
                 name: name,
-                type: "STOCK",
+                type: type || "STOCK", // Use provided type or default
                 quantity: quantity,
                 avgCost: avgCost,
                 currentPrice: currentPrice !== undefined ? currentPrice : avgCost,

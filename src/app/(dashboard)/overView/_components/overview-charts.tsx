@@ -18,10 +18,13 @@ export function OverviewCharts() {
     return (
         <div className="grid gap-4 md:grid-cols-3">
             {/* Left 2/3: Asset Trend */}
-            <AssetTrendContainer />
+            {/* Left 2/3: Asset Trend */}
+            <div className="col-span-2 min-w-0">
+                <AssetTrendContainer />
+            </div>
 
             {/* Right 1/3: Asset Allocation */}
-            <Card className="col-span-1 shadow-sm">
+            <Card className="col-span-2 md:col-span-1 shadow-sm min-w-0">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base font-normal">Allocation</CardTitle>
                 </CardHeader>

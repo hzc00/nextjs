@@ -47,16 +47,16 @@ export function AssetTrendContainer() {
 
     return (
         <Card className="col-span-2 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 pb-2">
                 <CardTitle className="text-base font-normal">Asset Trend</CardTitle>
-                <div className="flex items-center space-x-4">
+                <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center space-x-2">
                         <Switch
                             id="percentage-mode"
                             checked={showPercentage}
                             onCheckedChange={setShowPercentage}
                         />
-                        <Label htmlFor="percentage-mode" className="text-xs text-muted-foreground">
+                        <Label htmlFor="percentage-mode" className="text-xs text-muted-foreground whitespace-nowrap">
                             Yield %
                         </Label>
                     </div>

@@ -23,6 +23,7 @@ export function AssetAllocationPie({ data }: AssetAllocationPieProps) {
         legend: {
             bottom: "0%",
             left: "center",
+            type: "scroll",
             textStyle: {
                 color: isDark ? "#9ca3af" : "#374151",
             },

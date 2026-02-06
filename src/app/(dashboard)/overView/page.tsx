@@ -23,17 +23,18 @@ export default function OverviewPage() {
 
     return (
         <div className="flex flex-col space-y-8">
-            <header className="flex items-center justify-between">
+            <header className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0">
                 <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <RefreshPricesButton />
-                    <Button variant="outline" onClick={() => setStrategyOpen(true)}>
+                    <Button variant="outline" size="sm" onClick={() => setStrategyOpen(true)}>
                         <Settings2 className="mr-2 h-4 w-4" />
-                        Configure Strategy
+                        <span className="hidden sm:inline">Strategy</span>
                     </Button>
-                    <Button onClick={() => setGlobalTransactionOpen(true)}>
+                    <Button size="sm" onClick={() => setGlobalTransactionOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />
-                        Add Position
+                        <span className="hidden sm:inline">Add Position</span>
+                        <span className="inline sm:hidden">Add</span>
                     </Button>
                 </div>
             </header>

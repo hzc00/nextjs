@@ -415,7 +415,7 @@ export const deleteAssetClass = async (id: number) => {
     }
 };
 
-export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number, assetClassId?: number) => {
+export const updateAssetPosition = async (code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number) => {
     try {
         const session = await auth();
         const userId = session?.user?.id ? Number(session.user.id) : undefined;
@@ -447,7 +447,9 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
                 avgCost: avgCost,
                 // Only update name if a valid one is provided
                 ...(name ? { name } : {}),
-                assetClassId: assetClassId
+                assetClassId: assetClassId,
+                // If currentPrice provided, update it too (e.g. manual override)
+                ...(currentPrice !== undefined ? { currentPrice } : {})
             },
             create: {
                 code: code,
@@ -455,7 +457,7 @@ export const updateAssetPosition = async (code: string, name: string, quantity: 
                 type: "STOCK",
                 quantity: quantity,
                 avgCost: avgCost,
-                currentPrice: avgCost,
+                currentPrice: currentPrice !== undefined ? currentPrice : avgCost,
                 userId: userId,
                 assetClassId: assetClassId
             }
@@ -493,6 +495,9 @@ export const deleteAsset = async (assetId: number) => {
         await db.asset.delete({
             where: { id: assetId }
         });
+
+        // Update Snapshot immediately to reflect removal
+        await tryCreateDailySnapshot();
 
         revalidatePath("/overView");
         return { success: true };

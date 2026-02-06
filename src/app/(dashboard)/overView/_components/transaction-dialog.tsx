@@ -194,7 +194,8 @@ export function TransactionDialog({
             name: values.name,
             quantity: finalQty,
             avgCost: finalCost,
-            assetClassId: values.assetClassId ? Number(values.assetClassId) : undefined
+            assetClassId: values.assetClassId ? Number(values.assetClassId) : undefined,
+            currentPrice: Number(values.currentPrice)
         }, {
             onSuccess: () => {
                 onOpenChange(false);

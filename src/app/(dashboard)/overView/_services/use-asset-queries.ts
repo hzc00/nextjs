@@ -53,8 +53,8 @@ export function useUpdateAssetPosition() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: { code: string, name: string, quantity: number, avgCost: number, assetClassId?: number }) => {
-            const res = await updateAssetPosition(data.code, data.name, data.quantity, data.avgCost, data.assetClassId);
+        mutationFn: async (data: { code: string, name: string, quantity: number, avgCost: number, assetClassId?: number, currentPrice?: number }) => {
+            const res = await updateAssetPosition(data.code, data.name, data.quantity, data.avgCost, data.assetClassId, data.currentPrice);
             if (!res.success) throw new Error(res.error);
             return res;
         },

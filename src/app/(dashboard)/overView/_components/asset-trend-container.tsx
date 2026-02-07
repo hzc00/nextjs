@@ -10,7 +10,7 @@ import { usePortfolioSnapshots } from "../_services/use-asset-queries";
 
 export function AssetTrendContainer() {
     const [range, setRange] = useState<"week" | "month" | "year">("week");
-    const [showPercentage, setShowPercentage] = useState(false);
+    const [showPercentage, setShowPercentage] = useState(true);
 
     const periodMap = {
         week: 7,

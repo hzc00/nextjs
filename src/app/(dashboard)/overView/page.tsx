@@ -40,7 +40,7 @@ export default function OverviewPage() {
             </header>
 
             {/* 1. Metic Cards */}
-            <OverviewMetricCards />
+            {/* <OverviewMetricCards /> */}
 
             {/* 2. Charts Area */}
             <OverviewCharts />

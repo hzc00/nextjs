@@ -4,6 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { TransactionDialog } from "./transaction-dialog";
 import { useAssets, useDeleteAsset } from "../_services/use-asset-queries";
 import { Loader2, Trash2 } from "lucide-react";
@@ -23,11 +30,16 @@ export function OverviewPositionsTable() {
     const [transactionOpen, setTransactionOpen] = useState(false);
     const [selectedCode, setSelectedCode] = useState<string | undefined>(undefined);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [strategyFilter, setStrategyFilter] = useState<string>("ALL");
     const deleteMutation = useDeleteAsset();
     // const queryClient = useQueryClient(); // Not needed locally if mutation handles it
 
     // Use React Query Hook
     const { data: positions, isLoading, error } = useAssets();
+
+    // Extract unique strategies (Asset Classes)
+    const uniqueStrategies = new Set((positions || []).map((p) => p.assetClassName).filter(Boolean));
+    const strategies = Array.from(uniqueStrategies) as string[];
 
     const handleTrade = (code: string) => {
         setSelectedCode(code);
@@ -78,14 +90,34 @@ export function OverviewPositionsTable() {
         return 2;
     };
 
-    const assetList = positions || [];
+
+
+    const assetList = (positions || []).filter(p => {
+        if (strategyFilter === "ALL") return true;
+        if (strategyFilter === "Unclassified") return !p.assetClassName;
+        return p.assetClassName === strategyFilter;
+    });
     const totalPortfolioValue = assetList.reduce((sum, p) => sum + (p.totalValue || 0), 0);
 
     return (
         <>
             <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                     <CardTitle>Positions</CardTitle>
+                    <Select value={strategyFilter} onValueChange={setStrategyFilter}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Filter by Strategy" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">All Strategies</SelectItem>
+                            {strategies.map((s) => (
+                                <SelectItem key={s} value={s}>
+                                    {s}
+                                </SelectItem>
+                            ))}
+                            <SelectItem value="Unclassified">Unclassified</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </CardHeader>
                 <CardContent>
                     {/* Desktop View: Table */}

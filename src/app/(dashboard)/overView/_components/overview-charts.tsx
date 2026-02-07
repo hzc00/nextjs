@@ -8,7 +8,7 @@ import { useAssetAllocation } from "../_services/use-asset-queries";
 import { Loader2 } from "lucide-react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AllocationGapChart } from "./charts/allocation-gap-chart";
+import { RebalanceChart } from "./charts/rebalance-chart";
 import { useAllocationGap } from "../_services/use-asset-queries";
 
 export function OverviewCharts() {
@@ -33,7 +33,7 @@ export function OverviewCharts() {
                         <div className="px-4 pb-2">
                             <TabsList className="grid w-full grid-cols-2 h-8">
                                 <TabsTrigger value="strategy" className="text-xs">Strategy</TabsTrigger>
-                                <TabsTrigger value="type" className="text-xs">By Type</TabsTrigger>
+                                <TabsTrigger value="type" className="text-xs">Distribution</TabsTrigger>
                             </TabsList>
                         </div>
 
@@ -57,7 +57,7 @@ export function OverviewCharts() {
                             ) : (
                                 <div className="h-full w-full">
                                     {(gapData || []).length > 0 ? (
-                                        <AllocationGapChart data={gapData || []} />
+                                        <RebalanceChart data={gapData || []} />
                                     ) : (
                                         <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground text-xs">
                                             <p>No strategy targets set.</p>

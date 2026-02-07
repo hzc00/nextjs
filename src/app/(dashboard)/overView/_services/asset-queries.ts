@@ -106,17 +106,21 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
 
 export const getAssetAllocation = async () => {
     const assets = await getAssets();
-    const allocationMap = new Map<string, number>();
+    const allocationMap = new Map<string, { value: number, color?: string }>();
 
     assets.forEach(a => {
-        const type = a.type;
+        const name = a.assetClassName || "Unclassified";
         const val = a.valueInCNY || 0; // Use RMB value
-        allocationMap.set(type, (allocationMap.get(type) || 0) + val);
+        const color = a.assetClassColor || undefined;
+        
+        const existing = allocationMap.get(name) || { value: 0, color };
+        allocationMap.set(name, { value: existing.value + val, color: existing.color || color });
     });
 
-    const data = Array.from(allocationMap.entries()).map(([name, value]) => ({
+    const data = Array.from(allocationMap.entries()).map(([name, item]) => ({
         name,
-        value
+        value: item.value,
+        color: item.color
     }));
 
     return data;
@@ -147,10 +151,28 @@ export const getPortfolioSnapshots = async (days: number = 30) => {
 };
 
 // Internal helper for single user snapshot
-const createSnapshotForUser = async (userId: number) => {
-    // Check if snapshot exists for today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+const createSnapshotForUser = async (userId: number, forceUpdate: boolean = false) => {
+    // Check if snapshot exists for today (Beijing Time)
+    // We normalize "Today" to Asia/Shanghai Midnight to ensure consistency across environments (Local Dev vs Vercel UTC)
+    const now = new Date();
+    const shanghaiDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }); // Returns YYYY-MM-DD
+    const today = new Date(`${shanghaiDateStr}T00:00:00+08:00`); // Force Shanghai Midnight
+
+    // If not forcing update (Client side check), checks if exists
+    if (!forceUpdate) {
+        const existing = await db.portfolioSnapshot.findUnique({
+            where: {
+                userId_date: {
+                    userId,
+                    date: today
+                }
+            }
+        });
+        if (existing) {
+            // Snapshot already exists for today, do not overwrite with live data
+            return;
+        }
+    }
 
     // Calculate current stats
     const summary = await getPortfolioSummary(userId);
@@ -183,7 +205,8 @@ export const tryCreateDailySnapshot = async () => {
     const userId = session?.user?.id ? Number(session.user.id) : undefined;
     if (!userId) return;
 
-    await createSnapshotForUser(userId);
+    // Client side trigger: forceUpdate = false
+    await createSnapshotForUser(userId, false);
 
     // Revalidate needed? Maybe not strictly if Client Component fetches.
     // But good practice if server components use it.
@@ -200,7 +223,8 @@ export const createScanningSnapshots = async () => {
 
     for (const user of users) {
         try {
-            await createSnapshotForUser(user.id);
+            // Cron trigger: forceUpdate = true
+            await createSnapshotForUser(user.id, true);
         } catch (e) {
             console.error(`[Cron] Failed to create snapshot for user ${user.id}`, e);
         }
@@ -230,11 +254,17 @@ export const getAllocationGap = async () => {
         const classValue = classAssets.reduce((sum, a) => sum + (a.valueInCNY || 0), 0);
         const actualPercent = (classValue / totalValue) * 100;
 
+        const targetValue = totalValue * (c.targetPercent / 100);
+        const valDiff = targetValue - classValue;
+
         return {
             name: c.name,
             actual: Number(actualPercent.toFixed(1)),
             target: c.targetPercent,
-            color: c.color
+            color: c.color,
+            totalValue: classValue,
+            targetValue: targetValue,
+            valDiff: valDiff
         };
     });
 
@@ -243,11 +273,17 @@ export const getAllocationGap = async () => {
     if (unclassifiedAssets.length > 0) {
         const unclassValue = unclassifiedAssets.reduce((sum, a) => sum + (a.valueInCNY || 0), 0);
         const unclassPercent = (unclassValue / totalValue) * 100;
+        // Target for unclassified is always 0, so diff is negative (remove all)
+        const valDiff = 0 - unclassValue; 
+
         result.push({
             name: "Unclassified",
             actual: Number(unclassPercent.toFixed(1)),
             target: 0,
-            color: "#94a3b8" // Slate 400
+            color: "#94a3b8", // Slate 400
+            totalValue: unclassValue,
+            targetValue: 0,
+            valDiff: valDiff
         });
     }
 

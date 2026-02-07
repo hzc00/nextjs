@@ -221,7 +221,6 @@ export function TransactionDialog({
             currency: values.currency,
             type: values.type,
         }, {
-        }, {
             onSuccess: () => {
                 onOpenChange(false);
             }
@@ -514,7 +513,8 @@ export function TransactionDialog({
                             </div>
                         </div>
 
-                        <Button type="submit" className="w-full">
+                         <Button type="submit" className="w-full" disabled={updatePositionMutation.isPending}>
+                            {updatePositionMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Update Position
                         </Button>
                     </form>

@@ -257,7 +257,7 @@ export function TransactionDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Manage Portfolio</DialogTitle>
                     <DialogDescription>
@@ -388,7 +388,7 @@ export function TransactionDialog({
                                                     <span className="text-xs text-muted-foreground font-normal">Required for Qty</span>
                                                 </FormLabel>
                                                 <FormControl>
-                                                    <Input type="number" step="0.0001" {...field} />
+                                                    <Input type="number" step="0.0001" {...field} value={field.value ?? ''} />
                                                 </FormControl>
                                             </FormItem>
                                         )}
@@ -449,7 +449,7 @@ export function TransactionDialog({
                                             <FormItem>
                                                 <FormLabel>Total Market Value ($)</FormLabel>
                                                 <FormControl>
-                                                    <Input className="text-lg font-bold" type="number" step="0.01" {...field} />
+                                                    <Input className="text-lg font-bold" type="number" step="0.01" {...field} value={field.value ?? ''} />
                                                 </FormControl>
                                             </FormItem>
                                         )}
@@ -475,7 +475,7 @@ export function TransactionDialog({
                                                 <FormItem>
                                                     <FormLabel>Current Yield Rate (%)</FormLabel>
                                                     <FormControl>
-                                                        <Input type="number" step="0.01" placeholder="e.g. 20.5" {...field} />
+                                                        <Input type="number" step="0.01" placeholder="e.g. 20.5" {...field} value={field.value ?? ''} />
                                                     </FormControl>
                                                 </FormItem>
                                             )}
@@ -488,7 +488,7 @@ export function TransactionDialog({
                                                 <FormItem>
                                                     <FormLabel>Average Cost Price</FormLabel>
                                                     <FormControl>
-                                                        <Input type="number" step="0.0001" {...field} />
+                                                        <Input type="number" step="0.0001" {...field} value={field.value ?? ''} />
                                                     </FormControl>
                                                 </FormItem>
                                             )}
@@ -605,7 +605,7 @@ export function TransactionDialog({
                                     )}
                                 />
                                 
-                                <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md text-blue-800">
+                                <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-md text-blue-800 break-words whitespace-normal">
                                     <p>
                                         <strong>Note:</strong> Capital flows affect your <strong>Total Principal</strong>. 
                                         Deposits increase principal, withdrawals decrease it. This ensures your Return Rate accurately reflects investment performance, not just money added.

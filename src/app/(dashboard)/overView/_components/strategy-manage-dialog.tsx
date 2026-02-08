@@ -136,7 +136,7 @@ export function StrategyManageDialog({ open, onOpenChange }: Props) {
                                             <Input
                                                 value={c.name}
                                                 onChange={(e) => updateField(idx, 'name', e.target.value)}
-                                                className="h-8"
+                                                className="h-8 w-full min-w-[180px]"
                                             />
                                         </TableCell>
                                         <TableCell>

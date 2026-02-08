@@ -22,6 +22,7 @@ model User {
   assets             Asset[]
   portfolioSnapshots PortfolioSnapshot[]
   assetClasses       AssetClass[]
+  transactions       Transaction[]
 }
 
 enum Role {
@@ -131,6 +132,8 @@ enum TransactionType {
   SELL
   DIVIDEND
   TRANSFER
+  DEPOSIT
+  WITHDRAW
 }
 
 model Asset {
@@ -186,8 +189,11 @@ model Transaction {
   date        DateTime
   notes       String?
 
-  assetId Int
-  asset   Asset @relation(fields: [assetId], references: [id])
+  assetId Int?
+  asset   Asset? @relation(fields: [assetId], references: [id])
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

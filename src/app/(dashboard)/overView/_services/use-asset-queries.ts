@@ -155,3 +155,26 @@ export function useRefreshPrices() {
         }
     });
 }
+
+export function useRecordCapitalFlow() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (data: { type: "DEPOSIT" | "WITHDRAW", amount: number, date: Date }) => {
+            // Lazy import or move action to avoid circular deps if any, but valid here
+            const { recordCapitalFlow } = await import("./market-actions");
+            const res = await recordCapitalFlow(data.type, data.amount, data.date);
+            if (!res.success) throw new Error(res.error);
+            return res;
+        },
+        onSuccess: () => {
+            toast.success("Transaction recorded");
+            queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] });
+            queryClient.invalidateQueries({ queryKey: ["assets"] }); // In case we want to show cash later
+            queryClient.invalidateQueries({ queryKey: ["portfolio-snapshots"] });
+        },
+        onError: (error: Error) => {
+             toast.error(error.message || "Failed to record transaction");
+        }
+    });
+}

@@ -546,3 +546,30 @@ export const deleteAsset = async (assetId: number) => {
         return { success: false, error: message };
     }
 };
+
+export const recordCapitalFlow = async (type: "DEPOSIT" | "WITHDRAW", amount: number, date: Date) => {
+    try {
+        const session = await auth();
+        const userId = session?.user?.id ? Number(session.user.id) : undefined;
+        if (!userId) throw new Error("Unauthorized");
+
+        await db.transaction.create({
+            data: {
+                userId,
+                type: type as any, // Cast to any to bypass stale Client types
+                quantity: amount,
+                price: 1, 
+                totalAmount: amount, 
+                date: date,
+                assetId: undefined, // Use undefined for optional relation
+                notes: `Manual ${type}`
+            }
+        });
+
+        revalidatePath("/overView");
+        return { success: true };
+    } catch (error) {
+         console.error("Record Flow Error:", error);
+         return { success: false, error: "Failed to record flow" };
+    }
+};

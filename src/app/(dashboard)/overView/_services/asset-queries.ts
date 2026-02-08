@@ -94,15 +94,92 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
         ? (dailyProfit / (totalNetWorth - dailyProfit)) * 100
         : 0;
 
+    // --- Calculate Total Principal & Return ---
+    let totalPrincipal = 0;
+    
+    // Resolve userId again properly if needed
+    let targetUserId = userIdOverride;
+    if (!targetUserId) {
+        const session = await auth();
+        targetUserId = session?.user?.id ? Number(session.user.id) : undefined;
+    }
+    
+    // Default values if no principal found
+    let adjustedProfit = totalProfit; 
+    let adjustedReturnRate = 0;
+
+    if (targetUserId) {
+        // Fetch deposits/withdrawals
+        const flows = await db.transaction.groupBy({
+            by: ['type'],
+            where: {
+                userId: targetUserId,
+                type: { in: ['DEPOSIT', 'WITHDRAW'] as any[] }
+            },
+            _sum: {
+                totalAmount: true
+            }
+        });
+
+        const deposit = flows.find(f => f.type === 'DEPOSIT')?._sum.totalAmount || 0;
+        const withdraw = flows.find(f => f.type === 'WITHDRAW')?._sum.totalAmount || 0;
+        
+        totalPrincipal = deposit - withdraw;
+    }
+
+    if (totalPrincipal > 0) {
+        adjustedProfit = totalNetWorth - totalPrincipal;
+        adjustedReturnRate = (totalNetWorth - totalPrincipal) / totalPrincipal;
+    } else if (totalCost > 0) {
+         // Fallback
+         adjustedReturnRate = (totalNetWorth - totalCost) / totalCost;
+    }
+
+    // --- Yesterday's Profit ---
+    let yesterdayProfit = 0;
+    if (targetUserId) {
+        const snapshots = await db.portfolioSnapshot.findMany({
+            where: { userId: targetUserId },
+            orderBy: { date: 'desc' },
+            take: 3, 
+        });
+
+        if (snapshots.length >= 2) {
+             const getSnapshotByOffset = (offset: number) => {
+                 const d = new Date();
+                 d.setDate(d.getDate() - offset);
+                 const shanghaiDateStr = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' });
+                 return snapshots.find(s => {
+                     const sDateStr = s.date.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' });
+                     return sDateStr === shanghaiDateStr;
+                 });
+            };
+
+            const sYesterday = getSnapshotByOffset(1); 
+            const sDayBefore = getSnapshotByOffset(2); 
+
+            if (sYesterday && sDayBefore) {
+                yesterdayProfit = sYesterday.totalProfit - sDayBefore.totalProfit;
+            } else if (sYesterday) {
+                 yesterdayProfit = sYesterday.totalProfit;
+            }
+        }
+    }
+
     return {
         totalNetWorth,
-        totalProfit,
+        totalProfit: adjustedProfit,
         totalCost,
         dailyProfit,
         dailyChangePercent,
-        cashRatioString: "0%", // Placeholder
+        yesterdayProfit,
+        cashRatioString: "0%", 
+        totalPrincipal,
+        totalReturnRate: adjustedReturnRate
     };
 }
+
+
 
 export const getAssetAllocation = async () => {
     const assets = await getAssets();
@@ -177,6 +254,10 @@ const createSnapshotForUser = async (userId: number, forceUpdate: boolean = fals
     // Calculate current stats
     const summary = await getPortfolioSummary(userId);
 
+    // Use Total Principal (Net Inflow) as Cost Basis if available, otherwise fallback to Asset Cost
+    // This ensures the "Cost" line on charts reflects the actual capital invested by the user
+    const snapshotCost = summary.totalPrincipal > 0 ? summary.totalPrincipal : summary.totalCost;
+
     // Upsert snapshot for today to ensure it reflects latest state
     await db.portfolioSnapshot.upsert({
         where: {
@@ -189,12 +270,12 @@ const createSnapshotForUser = async (userId: number, forceUpdate: boolean = fals
             userId,
             date: today,
             totalNetWorth: summary.totalNetWorth,
-            totalCost: summary.totalCost,
-            totalProfit: summary.totalProfit
+            totalCost: snapshotCost,
+            totalProfit: summary.totalProfit // Note: summary.totalProfit is already adjusted (NetWorth - Principal) if Principal > 0
         },
         update: {
             totalNetWorth: summary.totalNetWorth,
-            totalCost: summary.totalCost,
+            totalCost: snapshotCost,
             totalProfit: summary.totalProfit
         }
     });

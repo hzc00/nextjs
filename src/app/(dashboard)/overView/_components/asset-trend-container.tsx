@@ -41,7 +41,7 @@ export function AssetTrendContainer() {
         : rawData.map(d => Number(d.value.toFixed(2)));
 
     const chartData = {
-        dates: rawData.map(d => d.date),
+        dates: rawData.map(d => new Date(d.date).toLocaleDateString()),
         values: displayValues,
     };
 

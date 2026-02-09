@@ -220,7 +220,7 @@ export const getPortfolioSnapshots = async (days: number = 30) => {
     });
 
     return snapshots.map(s => ({
-        date: s.date.toISOString().split('T')[0],
+        date: s.date.toISOString(),
         value: s.totalNetWorth,
         cost: s.totalCost,
         profit: s.totalProfit

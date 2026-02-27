@@ -44,7 +44,8 @@ interface TencentData {
 function identifySymbolSource(code: string): AssetSource {
     const cleanCode = code.trim();
     // Rule A: 6 digits (A-Shares/Funds) or 5 digits (HK Stocks)
-    if (/^\d{5,6}$/.test(cleanCode)) {
+    // Or Explicit Tencent prefix
+    if (/^\d{5,6}$/.test(cleanCode) || /^(sh|sz|hk|jj)\d{5,6}$/i.test(cleanCode)) {
         return 'TENCENT';
     }
 
@@ -135,7 +136,10 @@ async function fetchFromTencent(codes: string[]): Promise<Map<string, TencentDat
             if (isFund) {
                 name = values[1];
                 // For funds, index 5 is Unit Net Value, index 7 is daily change %
+                // BUT sometimes index 3 is also populated. Let's safely fallback.
                 price = parseFloat(values[5]);
+                if (isNaN(price) || price === 0) price = parseFloat(values[3]); // Fallback safely
+
                 const changePct = parseFloat(values[7]);
                 if (!isNaN(changePct)) dailyChange = changePct;
             } else {
@@ -316,17 +320,15 @@ export const searchAsset = async (query: string) => {
                     name = name.trim();
 
                     // Determine display symbol
-                    let displaySymbol = query;
-                    if (key.startsWith('sh')) displaySymbol = `${key.substring(2)}.SS`;
-                    else if (key.startsWith('sz')) displaySymbol = `${key.substring(2)}.SZ`;
-                    else if (key.startsWith('hk')) displaySymbol = `${key.substring(2)}.HK`;
-                    else if (key.startsWith('jj')) displaySymbol = key.substring(2);
+                    // We'll return the EXPLICIT Tencent key so future quotes are direct
+                    // Only for display we can strip it sometimes but here the symbol should be exact
+                    const explicitSymbol = key; // e.g., 'jj100050', 'sh600519'
 
                     // Prioritize Tencent: Remove existing Yahoo result if any
-                    candidates = candidates.filter(c => c.symbol !== displaySymbol);
+                    candidates = candidates.filter(c => c.symbol !== explicitSymbol);
 
                     candidates.unshift({
-                        symbol: displaySymbol,
+                        symbol: explicitSymbol, // Use the explicit key so getAssetQuote works identically
                         name: name,
                         exchange: key.substring(0, 2).toUpperCase(),
                         type: key.startsWith('jj') ? 'FUND' : 'EQUITY'
@@ -558,8 +560,8 @@ export const recordCapitalFlow = async (type: "DEPOSIT" | "WITHDRAW", amount: nu
                 userId,
                 type: type as any, // Cast to any to bypass stale Client types
                 quantity: amount,
-                price: 1, 
-                totalAmount: amount, 
+                price: 1,
+                totalAmount: amount,
                 date: date,
                 assetId: undefined, // Use undefined for optional relation
                 notes: `Manual ${type}`
@@ -569,7 +571,7 @@ export const recordCapitalFlow = async (type: "DEPOSIT" | "WITHDRAW", amount: nu
         revalidatePath("/overView");
         return { success: true };
     } catch (error) {
-         console.error("Record Flow Error:", error);
-         return { success: false, error: "Failed to record flow" };
+        console.error("Record Flow Error:", error);
+        return { success: false, error: "Failed to record flow" };
     }
 };

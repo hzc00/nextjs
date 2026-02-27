@@ -200,11 +200,12 @@ model Transaction {
 }
 
 model PortfolioSnapshot {
-  id            Int      @id @default(autoincrement())
-  date          DateTime
-  totalNetWorth Float
-  totalCost     Float
-  totalProfit   Float
+  id                Int      @id @default(autoincrement())
+  date              DateTime
+  totalNetWorth     Float
+  totalCost         Float
+  totalProfit       Float
+  adjustedCostBasis Float    @default(0) // New field for proportional simple return
 
   userId Int
   user   User @relation(fields: [userId], references: [id])

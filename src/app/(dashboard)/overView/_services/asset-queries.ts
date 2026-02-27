@@ -106,6 +106,11 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
             orderBy: { date: 'asc' }
         });
 
+        // --- XIRR Reset Date Configuration ---
+        // Provide a date here to ignore older transactions for XIRR calculation.
+        // e.g., new Date('2024-03-01T00:00:00Z')
+        const XIRR_START_DATE: Date | null = new Date('2026-03-01T00:00:00+08:00'); // Set to March 1st (Beijing Time)
+
         const xirrCashflows: number[] = [];
         const xirrDates: Date[] = [];
 
@@ -113,54 +118,74 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
         let withdrawSum = 0;
 
         // Iteratively calculate Adjusted Cost Basis
-        // Formula:
-        // On DEPOSIT: costBasis += amount
-        // On WITHDRAW: costBasis -= costBasis * (withdrawAmount / (prevNetWorthOrCostBeforeWithdraw)), 
-        // Real absolute proportional reduction: costBasis -= costBasis * (amount / currentPortfolioValueBeforeWithdrawal)
-        // Since we don't have historical daily net worth exactly aligned with every transaction easily here,
-        // The universally accepted "Adjusted Cost Basis" for simple return without daily pricing is:
-        // Withdraw Ratio = WithdrawAmount / (Total Principal before withdraw)
-        // Or more accurately: Withdraw Ratio = WithdrawAmount / (Total Assets Value at that time) -> Too complex to query historically here.
-        // Let's use the standard "Net Principal" but prevent it from going below 0.
-        // Simple proportional: if you withdraw 50% of your total deposited money (or value), you reduce cost basis by 50%.
-
-        // Let's use the most robust simplified proportional method if we can't get historical PV:
-        // If (withdraw > costBasis), costBasis = 0. Else costBasis -= withdraw.
-        // Wait, the user specifically wants proportional reduction based on *current* value.
-        // Since we can't easily fetch historical PV for EVERY transaction in this loop without massive DB queries,
-        // we will approximate it using the *latest* snapshot if it's a recent withdrawal, or just use net principal.
-
-        // Actually, let's use the XIRR for the true return, and for Simple Return, we use:
-        // Total Inflow - Total Outflow (but floored at 0 so it never breaks).
-        // Let's implement the strict XIRR first.
-
         for (const f of allFlows) {
             if (f.type === 'DEPOSIT') {
                 depositSum += f.totalAmount;
                 adjustedCostBasis += f.totalAmount;
-                xirrCashflows.push(-f.totalAmount); // Outflow from user's pocket
-                xirrDates.push(f.date);
+                
+                // Only include in XIRR if it's after the start date (or no start date set)
+                if (!XIRR_START_DATE || f.date >= XIRR_START_DATE) {
+                    xirrCashflows.push(-f.totalAmount); // Outflow from user's pocket
+                    xirrDates.push(f.date);
+                }
             } else if (f.type === 'WITHDRAW') {
                 withdrawSum += f.totalAmount;
                 // Proportional reduction logic approximation (if we don't have live PV, we reduce cost basis by the absolute amount, floored at 0)
                 adjustedCostBasis -= f.totalAmount;
                 if (adjustedCostBasis < 0) adjustedCostBasis = 0;
 
-                xirrCashflows.push(f.totalAmount); // Inflow to user's pocket
-                xirrDates.push(f.date);
+                // Only include in XIRR if it's after the start date (or no start date set)
+                if (!XIRR_START_DATE || f.date >= XIRR_START_DATE) {
+                    xirrCashflows.push(f.totalAmount); // Inflow to user's pocket
+                    xirrDates.push(f.date);
+                }
             }
         }
 
         totalPrincipal = depositSum - withdrawSum;
 
+        // If an XIRR Start Date is provided, we MUST inject the portfolio value at that time as the initial cost.
+        // If an XIRR Start Date is provided, we MUST inject the portfolio value at that time as the initial cost.
+        if (XIRR_START_DATE && XIRR_START_DATE <= new Date()) {
+            // Find the closest snapshot on or before the start date
+            const snapshot = await db.portfolioSnapshot.findFirst({
+                where: {
+                    userId: targetUserId,
+                    date: { lte: XIRR_START_DATE }
+                },
+                orderBy: { date: 'desc' }
+            });
+
+            // If a snapshot exists, we use it as the initial starting point (negative cashflow)
+            if (snapshot) {
+                // Prepend to arrays
+                xirrCashflows.unshift(-snapshot.totalNetWorth);
+                xirrDates.unshift(XIRR_START_DATE);
+            } else {
+                 // Fallback for new users or if no snapshot exists:
+                 // We don't have a starting value, so XIRR might be incomplete, but we continue with available flows.
+                 console.warn("XIRR_START_DATE is set, but no prior snapshot found for user.", targetUserId);
+            }
+        } else if (XIRR_START_DATE && XIRR_START_DATE > new Date()) {
+             console.warn("XIRR_START_DATE is in the future. Ignoring start date snapshot injection.");
+        }
+
         // Calculate XIRR if we have cashflows
-        if (xirrCashflows.length > 0 && totalNetWorth > 0) {
+        // We need at least one negative (investment) and one positive (current value) cashflow.
+        // The start date snapshot acts as the initial negative investment.
+        const hasInvestment = xirrCashflows.some(c => c < 0);
+        
+        if (XIRR_START_DATE && XIRR_START_DATE > new Date()) {
+            // Start date is in the future, so we don't calculate XIRR yet. Show 0.
+            annualizedReturn = 0;
+            console.log("XIRR computation skipped: start date is in the future.");
+        } else if (hasInvestment && totalNetWorth > 0) {
             // Add the final simulation: current total net worth as a positive cashflow today
             xirrCashflows.push(totalNetWorth);
             xirrDates.push(new Date());
 
             try {
-                // We use dynamic import so it doesn't break if optionally installed
+                 // We use dynamic import so it doesn't break if optionally installed
                 const xirr = require('xirr');
                 const rate = xirr.default ? xirr.default : xirr;
                 // xirr library takes an array of objects { amount: number, when: Date }
@@ -168,17 +193,24 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
                     amount,
                     when: xirrDates[i]
                 }));
-                console.log("XIRR Inputs:", JSON.stringify(inputs, null, 2));
+                // Filter out zero cashflows that might cause issues, except the final one
+                const validInputs = inputs.filter((d, i) => d.amount !== 0 || i === inputs.length - 1);
 
-                const result = rate(inputs);
-                console.log("XIRR Result:", result);
-
-                // Convert to percentage (e.g. 0.15 -> 15%)
-                annualizedReturn = result * 100;
+                if (validInputs.length >= 2) {
+                    console.log("XIRR Inputs:", JSON.stringify(validInputs, null, 2));
+                    const result = rate(validInputs);
+                    console.log("XIRR Result:", result);
+                    // Convert to percentage (e.g. 0.15 -> 15%)
+                    annualizedReturn = result * 100;
+                } else {
+                     annualizedReturn = 0;
+                }
             } catch (err) {
                 console.error("XIRR Calculation Failed:", err);
-                annualizedReturn = undefined; // Force undefined so UI doesn't show 0.00% incorrectly when it crashes
+                annualizedReturn = 0; // Force 0 so UI doesn't crash, matching expected number type
             }
+        } else {
+             annualizedReturn = 0;
         }
     }
 

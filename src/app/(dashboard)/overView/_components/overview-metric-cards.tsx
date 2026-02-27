@@ -97,16 +97,15 @@ export function OverviewMetricCards() {
             </div>
 
             {/* XIRR Display block on the right side if available */}
-            {xirrRate !== undefined && xirrRate !== 0 && (
-              <div className="text-right">
-                <div className={cn("text-lg font-bold", xirrRate >= 0 ? "text-red-500" : "text-green-500")}>
-                  {xirrRate > 0 ? "+" : ""}{xirrRate.toFixed(2)}%
-                </div>
-                <div className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
-                  XIRR (Annual)
-                </div>
+            {/* XIRR Display block on the right side */}
+            <div className="text-right">
+              <div className={cn("text-lg font-bold", (xirrRate || 0) >= 0 ? "text-red-500" : "text-green-500")}>
+                {(xirrRate || 0) > 0 ? "+" : ""}{(xirrRate || 0).toFixed(2)}%
               </div>
-            )}
+              <div className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
+                XIRR (Annual)
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -188,16 +188,36 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
                  // We use dynamic import so it doesn't break if optionally installed
                 const xirr = require('xirr');
                 const rate = xirr.default ? xirr.default : xirr;
+                
+                // Helper to truncate date to midnight local time to match Excel XIRR behavior ("算头不算尾")
+                const toStartOfDay = (d: Date) => {
+                    const tzDate = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+                    tzDate.setHours(0, 0, 0, 0);
+                    return tzDate;
+                };
+
                 // xirr library takes an array of objects { amount: number, when: Date }
                 const inputs = xirrCashflows.map((amount, i) => ({
                     amount,
-                    when: xirrDates[i]
+                    when: toStartOfDay(xirrDates[i])
                 }));
+                
                 // Filter out zero cashflows that might cause issues, except the final one
-                const validInputs = inputs.filter((d, i) => d.amount !== 0 || i === inputs.length - 1);
+                // Also consolidate cashflows that happen on the same exact day
+                const consolidatedInputs = inputs.reduce((acc, curr) => {
+                    const existing = acc.find(item => item.when.getTime() === curr.when.getTime());
+                    if (existing) {
+                        existing.amount += curr.amount;
+                    } else {
+                        acc.push({ ...curr });
+                    }
+                    return acc;
+                }, [] as {amount: number, when: Date}[]);
+
+                const validInputs = consolidatedInputs.filter((d, i) => d.amount !== 0 || i === consolidatedInputs.length - 1);
 
                 if (validInputs.length >= 2) {
-                    console.log("XIRR Inputs:", JSON.stringify(validInputs, null, 2));
+                    console.log("XIRR Inputs (Start of Day Adjusted):", JSON.stringify(validInputs, null, 2));
                     const result = rate(validInputs);
                     console.log("XIRR Result:", result);
                     // Convert to percentage (e.g. 0.15 -> 15%)

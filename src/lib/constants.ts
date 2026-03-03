@@ -10,5 +10,7 @@ const patterns = {
 
 const TIME_ZONE = "Asia/Shanghai";
 const TIME_ZONE_OFFSET = "+08:00";
+const CUTOFF_HOUR = 21;   // 北京时间每日结算截止小时
+const CUTOFF_MINUTE = 25; // 北京时间每日结算截止分钟
 
-export { patterns, TIME_ZONE, TIME_ZONE_OFFSET };
+export { patterns, TIME_ZONE, TIME_ZONE_OFFSET, CUTOFF_HOUR, CUTOFF_MINUTE };

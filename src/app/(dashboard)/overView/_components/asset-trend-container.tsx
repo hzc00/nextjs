@@ -25,7 +25,8 @@ export function AssetTrendContainer() {
     const rawData = (snapshots || []).map(s => ({
         date: s.date,
         value: s.value,
-        cost: s.cost || 0
+        cost: s.cost || 0,
+        displayDate: s.displayDate
     }));
 
     // Filter based on range (Mocking filtering for now or just show all if small)
@@ -41,7 +42,7 @@ export function AssetTrendContainer() {
         : rawData.map(d => Number(d.value.toFixed(2)));
 
     const chartData = {
-        dates: rawData.map(d => new Date(d.date).toLocaleDateString()),
+        dates: rawData.map(d => d.displayDate || new Date(d.date).toLocaleDateString()),
         values: displayValues,
     };
 

@@ -6,7 +6,26 @@ import { AssetModel } from "../_types/asset.schema";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getExchangeRates } from "./market-actions";
-import { TIME_ZONE, TIME_ZONE_OFFSET } from "@/lib/constants";
+import { TIME_ZONE, TIME_ZONE_OFFSET, CUTOFF_HOUR, CUTOFF_MINUTE } from "@/lib/constants";
+
+/**
+ * 返回上海时区当前时间上下文，使用 Intl API 避免 new Date(localeString) 双重转换问题。
+ * @param now - 当前 UTC 时间
+ */
+function getShanghaiTimeContext(now: Date): { todayYMD: string; isPastCutoff: boolean } {
+    const todayYMD = now.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIME_ZONE,
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false,
+    }).formatToParts(now);
+    const shanghaiHour = parseInt(parts.find(p => p.type === 'hour')!.value);
+    const shanghaiMinute = parseInt(parts.find(p => p.type === 'minute')!.value);
+    const isPastCutoff = shanghaiHour > CUTOFF_HOUR ||
+        (shanghaiHour === CUTOFF_HOUR && shanghaiMinute >= CUTOFF_MINUTE);
+    return { todayYMD, isPastCutoff };
+}
 
 
 export const getAssets = async (userIdOverride?: number): Promise<AssetModel[]> => {
@@ -250,21 +269,14 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
     let yesterdayProfit = 0; // Keeping old variable name for compatibility but it means "Previous Baseline Profit Change"
 
     if (targetUserId) {
-        // 1. Determine the Baseline Time (yesterday vs today 21:25)
+        // 1. Determine the Baseline Time
         const now = new Date();
-        // Get ShangHai time manually to compare properly regardless of server UTC
-        const shanghaiTime = new Date(now.toLocaleString("en-US", { timeZone: TIME_ZONE }));
+        const { todayYMD, isPastCutoff } = getShanghaiTimeContext(now);
 
-        // The cutoff is 21:25 Beijing Time
-        const isPastCutoff = (shanghaiTime.getHours() > 21) ||
-            (shanghaiTime.getHours() === 21 && shanghaiTime.getMinutes() >= 25);
-
-        // Baseline date is "Today" if past cutoff, otherwise "Yesterday"
-        const baselineDateStr = new Date(shanghaiTime);
-        if (!isPastCutoff) {
-            baselineDateStr.setDate(baselineDateStr.getDate() - 1); // Yesterday
-        }
-        const baselineShanghaiYMD = baselineDateStr.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+        // 基准日期规则：未到截止时间 → 昨天（上一个21:25结算快照）；过了截止时间 → 今天（刚结算的快照）
+        const baseDate = new Date(`${todayYMD}T12:00:00${TIME_ZONE_OFFSET}`);
+        if (!isPastCutoff) baseDate.setDate(baseDate.getDate() - 1);
+        const baselineShanghaiYMD = baseDate.toLocaleDateString('en-CA');
         const baselineStartOfDay = new Date(`${baselineShanghaiYMD}T00:00:00${TIME_ZONE_OFFSET}`);
 
         // 2. Fetch the Baseline Snapshot
@@ -277,8 +289,10 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
 
         if (baselineSnapshot) {
             // 3. Fetch Capital Flows (Deposits/Withdrawals) SINCE the Baseline Time
-            // We use the exact 21:25 timestamp of the baseline date
-            const baselineExactTime = new Date(`${baselineShanghaiYMD}T21:25:00${TIME_ZONE_OFFSET}`);
+            // We use the exact cutoff timestamp of the baseline date
+            const cutoffHH = String(CUTOFF_HOUR).padStart(2, '0');
+            const cutoffMM = String(CUTOFF_MINUTE).padStart(2, '0');
+            const baselineExactTime = new Date(`${baselineShanghaiYMD}T${cutoffHH}:${cutoffMM}:00${TIME_ZONE_OFFSET}`);
 
             const recentFlows = await db.transaction.groupBy({
                 by: ['type'],
@@ -305,9 +319,9 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
 
             // Calculate "Yesterday Profit" (Profit of the baseline day itself)
             // Need the snapshot BEFORE the baseline to do this
-            const dayBeforeBaselineStr = new Date(baselineDateStr);
-            dayBeforeBaselineStr.setDate(dayBeforeBaselineStr.getDate() - 1);
-            const dayBeforeYMD = dayBeforeBaselineStr.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+            const dayBeforeDate = new Date(baseDate);
+            dayBeforeDate.setDate(dayBeforeDate.getDate() - 1);
+            const dayBeforeYMD = dayBeforeDate.toLocaleDateString('en-CA');
             const dayBeforeStartOfDay = new Date(`${dayBeforeYMD}T00:00:00${TIME_ZONE_OFFSET}`);
 
             const prevSnapshot = await db.portfolioSnapshot.findFirst({
@@ -382,6 +396,8 @@ export const getPortfolioSnapshots = async (days: number = 30) => {
 
     return snapshots.map(s => ({
         date: s.date.toISOString(),
+        // 服务端直接返回北京时间日期字符串，避免客户端时区换算出错
+        displayDate: s.date.toLocaleDateString('en-CA', { timeZone: TIME_ZONE }),
         value: s.totalNetWorth,
         cost: s.totalCost,
         profit: s.totalProfit
@@ -390,21 +406,19 @@ export const getPortfolioSnapshots = async (days: number = 30) => {
 
 // Internal helper for single user snapshot
 const createSnapshotForUser = async (userId: number, forceUpdate: boolean = false) => {
-    // Determine the Baseline Time (yesterday vs today 21:25)
     const now = new Date();
-    const shanghaiTime = new Date(now.toLocaleString("en-US", { timeZone: TIME_ZONE }));
+    const { todayYMD, isPastCutoff } = getShanghaiTimeContext(now);
 
-    // The cutoff is 21:25 Beijing Time
-    const isPastCutoff = (shanghaiTime.getHours() > 21) ||
-        (shanghaiTime.getHours() === 21 && shanghaiTime.getMinutes() >= 25);
-
-    // Baseline date is "Today" if past cutoff, otherwise "Yesterday"
-    const baselineDateStr = new Date(shanghaiTime);
-    if (!isPastCutoff) {
-        baselineDateStr.setDate(baselineDateStr.getDate() - 1); // Yesterday
+    // 快照归属日期规则（两种触发方式行为不同）：
+    // - Cron (forceUpdate=true): 始终存为今天 — cron 就是负责结算当日数据
+    // - 客户端刷新 (forceUpdate=false): 未到截止=今天，过了截止=明天（开启下一日基准追踪）
+    let snapshotYMD = todayYMD;
+    if (!forceUpdate && isPastCutoff) {
+        const d = new Date(`${todayYMD}T12:00:00${TIME_ZONE_OFFSET}`);
+        d.setDate(d.getDate() + 1);
+        snapshotYMD = d.toLocaleDateString('en-CA');
     }
-    const baselineShanghaiYMD = baselineDateStr.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
-    const targetSnapshotDate = new Date(`${baselineShanghaiYMD}T00:00:00${TIME_ZONE_OFFSET}`);
+    const targetSnapshotDate = new Date(`${snapshotYMD}T00:00:00${TIME_ZONE_OFFSET}`);
 
     // If not forcing update (Client side check), checks if exists
     if (!forceUpdate) {

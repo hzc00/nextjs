@@ -8,4 +8,7 @@ const patterns = {
   minEightCharacters: /^.{8,}$/,
 };
 
-export { patterns };
+const TIME_ZONE = "Asia/Shanghai";
+const TIME_ZONE_OFFSET = "+08:00";
+
+export { patterns, TIME_ZONE, TIME_ZONE_OFFSET };

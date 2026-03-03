@@ -6,7 +6,7 @@ import { AssetModel } from "../_types/asset.schema";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getExchangeRates } from "./market-actions";
-
+import { TIME_ZONE, TIME_ZONE_OFFSET } from "@/lib/constants";
 
 
 export const getAssets = async (userIdOverride?: number): Promise<AssetModel[]> => {
@@ -109,7 +109,7 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
         // --- XIRR Reset Date Configuration ---
         // Provide a date here to ignore older transactions for XIRR calculation.
         // e.g., new Date('2024-03-01T00:00:00Z')
-        const XIRR_START_DATE: Date | null = new Date('2026-03-01T00:00:00+08:00'); // Set to March 1st (Beijing Time)
+        const XIRR_START_DATE: Date | null = new Date(`2026-03-01T00:00:00${TIME_ZONE_OFFSET}`); // Set to March 1st (Beijing Time)
 
         const xirrCashflows: number[] = [];
         const xirrDates: Date[] = [];
@@ -122,7 +122,7 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
             if (f.type === 'DEPOSIT') {
                 depositSum += f.totalAmount;
                 adjustedCostBasis += f.totalAmount;
-                
+
                 // Only include in XIRR if it's after the start date (or no start date set)
                 if (!XIRR_START_DATE || f.date >= XIRR_START_DATE) {
                     xirrCashflows.push(-f.totalAmount); // Outflow from user's pocket
@@ -162,19 +162,19 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
                 xirrCashflows.unshift(-snapshot.totalNetWorth);
                 xirrDates.unshift(XIRR_START_DATE);
             } else {
-                 // Fallback for new users or if no snapshot exists:
-                 // We don't have a starting value, so XIRR might be incomplete, but we continue with available flows.
-                 console.warn("XIRR_START_DATE is set, but no prior snapshot found for user.", targetUserId);
+                // Fallback for new users or if no snapshot exists:
+                // We don't have a starting value, so XIRR might be incomplete, but we continue with available flows.
+                console.warn("XIRR_START_DATE is set, but no prior snapshot found for user.", targetUserId);
             }
         } else if (XIRR_START_DATE && XIRR_START_DATE > new Date()) {
-             console.warn("XIRR_START_DATE is in the future. Ignoring start date snapshot injection.");
+            console.warn("XIRR_START_DATE is in the future. Ignoring start date snapshot injection.");
         }
 
         // Calculate XIRR if we have cashflows
         // We need at least one negative (investment) and one positive (current value) cashflow.
         // The start date snapshot acts as the initial negative investment.
         const hasInvestment = xirrCashflows.some(c => c < 0);
-        
+
         if (XIRR_START_DATE && XIRR_START_DATE > new Date()) {
             // Start date is in the future, so we don't calculate XIRR yet. Show 0.
             annualizedReturn = 0;
@@ -185,13 +185,13 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
             xirrDates.push(new Date());
 
             try {
-                 // We use dynamic import so it doesn't break if optionally installed
+                // We use dynamic import so it doesn't break if optionally installed
                 const xirr = require('xirr');
                 const rate = xirr.default ? xirr.default : xirr;
-                
+
                 // Helper to truncate date to midnight local time to match Excel XIRR behavior ("算头不算尾")
                 const toStartOfDay = (d: Date) => {
-                    const tzDate = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+                    const tzDate = new Date(d.toLocaleString("en-US", { timeZone: TIME_ZONE }));
                     tzDate.setHours(0, 0, 0, 0);
                     return tzDate;
                 };
@@ -201,7 +201,7 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
                     amount,
                     when: toStartOfDay(xirrDates[i])
                 }));
-                
+
                 // Filter out zero cashflows that might cause issues, except the final one
                 // Also consolidate cashflows that happen on the same exact day
                 const consolidatedInputs = inputs.reduce((acc, curr) => {
@@ -212,7 +212,7 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
                         acc.push({ ...curr });
                     }
                     return acc;
-                }, [] as {amount: number, when: Date}[]);
+                }, [] as { amount: number, when: Date }[]);
 
                 const validInputs = consolidatedInputs.filter((d, i) => d.amount !== 0 || i === consolidatedInputs.length - 1);
 
@@ -223,14 +223,14 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
                     // Convert to percentage (e.g. 0.15 -> 15%)
                     annualizedReturn = result * 100;
                 } else {
-                     annualizedReturn = 0;
+                    annualizedReturn = 0;
                 }
             } catch (err) {
                 console.error("XIRR Calculation Failed:", err);
                 annualizedReturn = 0; // Force 0 so UI doesn't crash, matching expected number type
             }
         } else {
-             annualizedReturn = 0;
+            annualizedReturn = 0;
         }
     }
 
@@ -253,7 +253,7 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
         // 1. Determine the Baseline Time (yesterday vs today 21:25)
         const now = new Date();
         // Get ShangHai time manually to compare properly regardless of server UTC
-        const shanghaiTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+        const shanghaiTime = new Date(now.toLocaleString("en-US", { timeZone: TIME_ZONE }));
 
         // The cutoff is 21:25 Beijing Time
         const isPastCutoff = (shanghaiTime.getHours() > 21) ||
@@ -264,8 +264,8 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
         if (!isPastCutoff) {
             baselineDateStr.setDate(baselineDateStr.getDate() - 1); // Yesterday
         }
-        const baselineShanghaiYMD = baselineDateStr.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' });
-        const baselineStartOfDay = new Date(`${baselineShanghaiYMD}T00:00:00+08:00`);
+        const baselineShanghaiYMD = baselineDateStr.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+        const baselineStartOfDay = new Date(`${baselineShanghaiYMD}T00:00:00${TIME_ZONE_OFFSET}`);
 
         // 2. Fetch the Baseline Snapshot
         const baselineSnapshot = await db.portfolioSnapshot.findFirst({
@@ -278,7 +278,7 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
         if (baselineSnapshot) {
             // 3. Fetch Capital Flows (Deposits/Withdrawals) SINCE the Baseline Time
             // We use the exact 21:25 timestamp of the baseline date
-            const baselineExactTime = new Date(`${baselineShanghaiYMD}T21:25:00+08:00`);
+            const baselineExactTime = new Date(`${baselineShanghaiYMD}T21:25:00${TIME_ZONE_OFFSET}`);
 
             const recentFlows = await db.transaction.groupBy({
                 by: ['type'],
@@ -307,8 +307,8 @@ export const getPortfolioSummary = async (userIdOverride?: number) => {
             // Need the snapshot BEFORE the baseline to do this
             const dayBeforeBaselineStr = new Date(baselineDateStr);
             dayBeforeBaselineStr.setDate(dayBeforeBaselineStr.getDate() - 1);
-            const dayBeforeYMD = dayBeforeBaselineStr.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' });
-            const dayBeforeStartOfDay = new Date(`${dayBeforeYMD}T00:00:00+08:00`);
+            const dayBeforeYMD = dayBeforeBaselineStr.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+            const dayBeforeStartOfDay = new Date(`${dayBeforeYMD}T00:00:00${TIME_ZONE_OFFSET}`);
 
             const prevSnapshot = await db.portfolioSnapshot.findFirst({
                 where: {
@@ -392,7 +392,7 @@ export const getPortfolioSnapshots = async (days: number = 30) => {
 const createSnapshotForUser = async (userId: number, forceUpdate: boolean = false) => {
     // Determine the Baseline Time (yesterday vs today 21:25)
     const now = new Date();
-    const shanghaiTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+    const shanghaiTime = new Date(now.toLocaleString("en-US", { timeZone: TIME_ZONE }));
 
     // The cutoff is 21:25 Beijing Time
     const isPastCutoff = (shanghaiTime.getHours() > 21) ||
@@ -403,8 +403,8 @@ const createSnapshotForUser = async (userId: number, forceUpdate: boolean = fals
     if (!isPastCutoff) {
         baselineDateStr.setDate(baselineDateStr.getDate() - 1); // Yesterday
     }
-    const baselineShanghaiYMD = baselineDateStr.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' });
-    const targetSnapshotDate = new Date(`${baselineShanghaiYMD}T00:00:00+08:00`);
+    const baselineShanghaiYMD = baselineDateStr.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+    const targetSnapshotDate = new Date(`${baselineShanghaiYMD}T00:00:00${TIME_ZONE_OFFSET}`);
 
     // If not forcing update (Client side check), checks if exists
     if (!forceUpdate) {

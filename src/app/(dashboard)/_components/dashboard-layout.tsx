@@ -13,6 +13,7 @@ import {
   Moon,
   Sun,
   PieChart,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +55,11 @@ const ROUTE_GROUPS: RouterGroupsProps[] = [
         href: "/overView",
         label: "Overview",
         icon: <PieChart className="mr-2 size-3" />,
+      },
+      {
+        href: "/chat",
+        label: "Chat",
+        icon: <MessageCircle className="mr-2 size-3" />,
       },
     ],
   },

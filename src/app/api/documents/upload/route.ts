@@ -65,18 +65,18 @@ export async function POST(req: NextRequest) {
     // 4. Save chunks with embeddings
     for (let i = 0; i < chunks.length; i++) {
       const content = chunks[i];
-      const embedding = embeddings[i]; // Array of numbers
+      // 修复：将数组转为字符串格式，否则数据库不认识
+      const embeddingString = `[${embeddings[i].join(",")}]`; 
 
-      // Store in DB using raw SQL since Unsupported('vector') cannot be written via Prisma client directly
+      // 修复：补上缺失的 ${document.id} 参数
       await prisma.$executeRaw`
         INSERT INTO "DocumentChunk" ("content", "embedding", "documentId") 
-        VALUES (${content}, ${embedding}::vector, ${document.id})
+        VALUES (${content}, ${embeddingString}::vector, ${document.id})
       `;
     }
 
     return NextResponse.json({ 
       success: true, 
-      documentId: document.id,
       chunksProcessed: chunks.length 
     });
   } catch (error: any) {

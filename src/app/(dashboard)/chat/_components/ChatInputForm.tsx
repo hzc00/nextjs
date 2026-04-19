@@ -22,7 +22,7 @@ export const ChatInputForm = ({ input, handleInputChange, handleSubmit, isLoadin
     formData.append("file", file);
 
     try {
-      const response = await fetch("/api/upload", {
+      const response = await fetch("/api/documents/upload", {
         method: "POST",
         body: formData,
       });

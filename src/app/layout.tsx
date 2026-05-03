@@ -1,11 +1,17 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/providers";
+import { Metadata } from "next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
+export const metadata: Metadata = {
+  verification: {
+    google: 'QwgImFjAJMuExl08KcCw8Dk7husm3rplpeOcvRYiJe8',
+  },
+};
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",

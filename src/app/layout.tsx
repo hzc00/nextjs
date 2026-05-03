@@ -9,9 +9,10 @@ const geistSans = Geist({
 });
 export const metadata: Metadata = {
   verification: {
-    google: 'QwgImFjAJMuExl08KcCw8Dk7husm3rplpeOcvRYiJe8',
+    google: 'lWBGmi9oiGet6Kx0NQx75IE8J2vFHPMq9vuFlzG9DkI',
   },
 };
+
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
